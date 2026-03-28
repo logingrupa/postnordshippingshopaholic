@@ -22,6 +22,7 @@ it('has correct fillable fields', function (): void {
         'country_code',
         'northing',
         'easting',
+        'distance_in_meters',
     ];
 
     expect($obServicePoint->fillable)->toBe($arExpectedFillable);

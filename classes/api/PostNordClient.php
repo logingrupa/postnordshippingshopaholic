@@ -160,9 +160,27 @@ class PostNordClient
             'postal_code'      => self::mixedToString(data_get($arAddress, 'postalCode', '')),
             'city'             => self::mixedToString(data_get($arAddress, 'city', '')),
             'country_code'     => self::mixedToString(data_get($arAddress, 'countryCode', '')),
-            'northing'         => is_numeric($mNorthing) ? (float) $mNorthing : null,
-            'easting'          => is_numeric($mEasting) ? (float) $mEasting : null,
+            'northing'           => is_numeric($mNorthing) ? (float) $mNorthing : null,
+            'easting'            => is_numeric($mEasting) ? (float) $mEasting : null,
+            'distance_in_meters' => $this->extractDistanceInMeters($arPointData),
         ];
+    }
+
+    /**
+     * Extract route distance in meters from a service point
+     *
+     * @param array<mixed, mixed> $arPointData Service point data
+     * @return int|null Distance in meters or null if unavailable
+     */
+    private function extractDistanceInMeters(array $arPointData): ?int
+    {
+        $mRouteDistance = data_get($arPointData, 'routeDistance');
+
+        if (is_numeric($mRouteDistance)) {
+            return (int) $mRouteDistance;
+        }
+
+        return null;
     }
 
     /**

@@ -13,7 +13,6 @@ parameters:
         - tests
         - updates
         - lang
-        - partials
         - assets
     tmpDir: ../../../storage/temp/phpstan/postnordshipping
 

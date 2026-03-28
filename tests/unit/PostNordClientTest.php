@@ -16,6 +16,7 @@ it('parses service points from API response', function (): void {
                     [
                         'servicePointId' => '123456',
                         'name' => 'Coop Extra Moss',
+                        'routeDistance' => 1250,
                         'visitingAddress' => [
                             'streetName' => 'Gjeddeveien',
                             'streetNumber' => '18',
@@ -30,6 +31,7 @@ it('parses service points from API response', function (): void {
                     [
                         'servicePointId' => '789012',
                         'name' => 'Rema 1000 Kambo',
+                        'routeDistance' => 3400,
                         'visitingAddress' => [
                             'streetName' => 'Kamboveien',
                             'streetNumber' => '5',
@@ -59,8 +61,10 @@ it('parses service points from API response', function (): void {
     expect($arResult[0]['country_code'])->toBe('NO');
     expect($arResult[0]['northing'])->toBe(59.4340);
     expect($arResult[0]['easting'])->toBe(10.6590);
+    expect($arResult[0]['distance_in_meters'])->toBe(1250);
 
     expect($arResult[1]['service_point_id'])->toBe('789012');
+    expect($arResult[1]['distance_in_meters'])->toBe(3400);
     expect($arResult[1]['name'])->toBe('Rema 1000 Kambo');
 });
 
@@ -116,6 +120,7 @@ it('handles missing coordinates gracefully', function (): void {
     expect($arResult)->toHaveCount(1);
     expect($arResult[0]['northing'])->toBeNull();
     expect($arResult[0]['easting'])->toBeNull();
+    expect($arResult[0]['distance_in_meters'])->toBeNull();
 });
 
 it('handles empty service points array', function (): void {

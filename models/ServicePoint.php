@@ -23,6 +23,7 @@ use October\Rain\Database\Traits\Validation;
  * @property string $country_code
  * @property float|null $northing
  * @property float|null $easting
+ * @property int|null $distance_in_meters
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -44,6 +45,7 @@ class ServicePoint extends Model
         'country_code',
         'northing',
         'easting',
+        'distance_in_meters',
     ];
 
     /** @var array<string, string> */

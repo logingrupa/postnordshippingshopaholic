@@ -19,6 +19,7 @@ class CreateServicePointsTable extends Migration
             $obTable->string('country_code', 2);
             $obTable->decimal('northing', 10, 7)->nullable();
             $obTable->decimal('easting', 10, 7)->nullable();
+            $obTable->unsignedInteger('distance_in_meters')->nullable();
             $obTable->timestamps();
 
             $obTable->index(['postal_code', 'country_code']);

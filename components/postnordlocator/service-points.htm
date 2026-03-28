@@ -15,6 +15,15 @@
                 <span class="postnord-locator__point-address">
                     {{ obPoint.street_name }} {{ obPoint.street_number }}, {{ obPoint.postal_code }} {{ obPoint.city }}
                 </span>
+                {% if obPoint.distance_in_meters %}
+                    <span class="postnord-locator__point-distance">
+                        {% if obPoint.distance_in_meters >= 1000 %}
+                            {{ (obPoint.distance_in_meters / 1000)|number_format(1) }} km
+                        {% else %}
+                            {{ obPoint.distance_in_meters }} m
+                        {% endif %}
+                    </span>
+                {% endif %}
             </label>
         {% endfor %}
     </div>
