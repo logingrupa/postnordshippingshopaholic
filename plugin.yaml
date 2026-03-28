@@ -1,0 +1,6 @@
+plugin:
+    name: logingrupa.postnordshipping::lang.plugin.name
+    description: logingrupa.postnordshipping::lang.plugin.description
+    author: Logingrupa
+    icon: icon-map-marker
+    homepage: ''

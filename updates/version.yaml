@@ -1,0 +1,5 @@
+"1.0.0":
+    - "Initialize PostNord Shipping plugin."
+    - create_service_points_table.php
+    - extend_shipping_types_table.php
+    - create_order_properties.php

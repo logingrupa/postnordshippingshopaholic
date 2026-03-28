@@ -1,0 +1,20 @@
+fields:
+    api_key:
+        label: logingrupa.postnordshipping::lang.field.api_key
+        comment: logingrupa.postnordshipping::lang.field.api_key_comment
+        type: text
+        required: true
+        span: full
+    country_code:
+        label: logingrupa.postnordshipping::lang.field.country_code
+        type: dropdown
+        default: 'NO'
+        span: auto
+        options:
+            'NO': Norway
+            'LV': Latvia
+    max_results:
+        label: logingrupa.postnordshipping::lang.field.max_results
+        type: number
+        default: 10
+        span: auto
