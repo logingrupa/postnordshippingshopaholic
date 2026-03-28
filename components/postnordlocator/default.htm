@@ -1,0 +1,22 @@
+<div id="postnord-locator" class="postnord-locator" data-postnord-locator>
+    <div class="postnord-locator__input-group">
+        <label for="postnord-postal-code">
+            {{ 'logingrupa.postnordshipping::lang.component.postal_code_label'|_ }}
+        </label>
+        <input
+            type="text"
+            id="postnord-postal-code"
+            name="postal_code"
+            maxlength="5"
+            pattern="[0-9]{4,5}"
+            placeholder="{{ 'logingrupa.postnordshipping::lang.component.postal_code_placeholder'|_ }}"
+            data-postnord-postal-input
+        />
+    </div>
+    <div id="postnord-service-points" data-postnord-results>
+        {% partial '@service-points' arServicePointList=[] %}
+    </div>
+</div>
+{% put scripts %}
+    <script src="{{ 'plugins/logingrupa/postnordshippingshopaholic/assets/js/postnord-locator.js'|app }}"></script>
+{% endput %}

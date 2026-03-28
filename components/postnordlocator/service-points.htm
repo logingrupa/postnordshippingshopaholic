@@ -1,0 +1,25 @@
+{% if arServicePointList is not empty %}
+    <div class="postnord-locator__results">
+        {% for obPoint in arServicePointList %}
+            <label class="postnord-locator__point">
+                <input
+                    type="radio"
+                    name="postnord_service_point"
+                    value="{{ obPoint.service_point_id }}"
+                    data-postnord-point
+                    data-point-id="{{ obPoint.service_point_id }}"
+                    data-point-name="{{ obPoint.name }}"
+                    data-point-address="{{ obPoint.street_name }} {{ obPoint.street_number }}, {{ obPoint.city }}"
+                />
+                <span class="postnord-locator__point-name">{{ obPoint.name }}</span>
+                <span class="postnord-locator__point-address">
+                    {{ obPoint.street_name }} {{ obPoint.street_number }}, {{ obPoint.postal_code }} {{ obPoint.city }}
+                </span>
+            </label>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="postnord-locator__empty">
+        {{ 'logingrupa.postnordshipping::lang.component.no_points'|_ }}
+    </p>
+{% endif %}
