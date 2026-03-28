@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Models;
+namespace Logingrupa\PostNordShippingShopaholic\Models;
 
 use System\Models\SettingModel;
 
 /**
  * Class Settings
- * @package Logingrupa\PostNordShipping\Models
+ * @package Logingrupa\PostNordShippingShopaholic\Models
  *
  * Backend settings model for PostNord API configuration.
  *

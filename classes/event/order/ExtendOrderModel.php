@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Classes\Event\Order;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\Order;
 
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Session;
@@ -10,7 +10,7 @@ use Lovata\OrdersShopaholic\Models\Order;
 
 /**
  * Class ExtendOrderModel
- * @package Logingrupa\PostNordShipping\Classes\Event\Order
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\Order
  *
  * Writes the selected PostNord service point data from session
  * into the Order model's property array after order creation.

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Classes\Event\ShippingType;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
 use Illuminate\Events\Dispatcher;
 use Lovata\OrdersShopaholic\Controllers\ShippingTypes;
@@ -10,7 +10,7 @@ use Lovata\OrdersShopaholic\Models\ShippingType;
 
 /**
  * Class ExtendShippingTypeFieldsHandler
- * @package Logingrupa\PostNordShipping\Classes\Event\ShippingType
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType
  *
  * Adds the "Is PostNord Pickup" checkbox to the ShippingType backend form.
  */
@@ -44,10 +44,10 @@ class ExtendShippingTypeFieldsHandler
 
         $obFormWidget->addFields([
             'is_postnord' => [
-                'label'   => 'logingrupa.postnordshipping::lang.field.is_postnord',
-                'comment' => 'logingrupa.postnordshipping::lang.field.is_postnord_comment',
+                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.is_postnord',
+                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.is_postnord_comment',
                 'type'    => 'checkbox',
-                'tab'     => 'logingrupa.postnordshipping::lang.field.tab_postnord',
+                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_postnord',
             ],
         ]);
     }

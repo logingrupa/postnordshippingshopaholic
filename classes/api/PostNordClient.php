@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Classes\Api;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Api;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Logingrupa\PostNordShipping\Models\Settings;
+use Logingrupa\PostNordShippingShopaholic\Models\Settings;
 
 /**
  * Class PostNordClient
- * @package Logingrupa\PostNordShipping\Classes\Api
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Api
  *
  * HTTP client for the PostNord Service Points V5 API.
  * Responsible only for API communication and response parsing.
@@ -130,31 +130,57 @@ class PostNordClient
                 continue;
             }
 
-            $mAddress = data_get($mPointData, 'visitingAddress');
-            $arAddress = is_array($mAddress) ? $mAddress : [];
-
-            $mCoordinateList = data_get($mPointData, 'coordinates');
-            $arCoordinateList = is_array($mCoordinateList) ? $mCoordinateList : [];
-            $arFirstCoordinate = $arCoordinateList !== [] && is_array($arCoordinateList[0])
-                ? $arCoordinateList[0]
-                : [];
-
-            $mNorthing = data_get($arFirstCoordinate, 'northing');
-            $mEasting = data_get($arFirstCoordinate, 'easting');
-
-            $arServicePointList[] = [
-                'service_point_id' => self::mixedToString(data_get($mPointData, 'servicePointId', '')),
-                'name'             => self::mixedToString(data_get($mPointData, 'name', '')),
-                'street_name'      => self::mixedToString(data_get($arAddress, 'streetName', '')),
-                'street_number'    => self::mixedToString(data_get($arAddress, 'streetNumber', '')),
-                'postal_code'      => self::mixedToString(data_get($arAddress, 'postalCode', '')),
-                'city'             => self::mixedToString(data_get($arAddress, 'city', '')),
-                'country_code'     => self::mixedToString(data_get($arAddress, 'countryCode', '')),
-                'northing'         => is_numeric($mNorthing) ? (float) $mNorthing : null,
-                'easting'          => is_numeric($mEasting) ? (float) $mEasting : null,
-            ];
+            $arServicePointList[] = $this->parseOneServicePoint($mPointData);
         }
 
         return $arServicePointList;
+    }
+
+    /**
+     * Parse a single service point from the API response
+     *
+     * @param array<mixed, mixed> $arPointData Single service point data
+     * @return array<string, mixed> Parsed service point
+     */
+    private function parseOneServicePoint(array $arPointData): array
+    {
+        $mAddress = data_get($arPointData, 'visitingAddress');
+        $arAddress = is_array($mAddress) ? $mAddress : [];
+
+        $arFirstCoordinate = $this->extractFirstCoordinate($arPointData);
+
+        $mNorthing = data_get($arFirstCoordinate, 'northing');
+        $mEasting = data_get($arFirstCoordinate, 'easting');
+
+        return [
+            'service_point_id' => self::mixedToString(data_get($arPointData, 'servicePointId', '')),
+            'name'             => self::mixedToString(data_get($arPointData, 'name', '')),
+            'street_name'      => self::mixedToString(data_get($arAddress, 'streetName', '')),
+            'street_number'    => self::mixedToString(data_get($arAddress, 'streetNumber', '')),
+            'postal_code'      => self::mixedToString(data_get($arAddress, 'postalCode', '')),
+            'city'             => self::mixedToString(data_get($arAddress, 'city', '')),
+            'country_code'     => self::mixedToString(data_get($arAddress, 'countryCode', '')),
+            'northing'         => is_numeric($mNorthing) ? (float) $mNorthing : null,
+            'easting'          => is_numeric($mEasting) ? (float) $mEasting : null,
+        ];
+    }
+
+    /**
+     * Extract the first coordinate from a service point's coordinates array
+     *
+     * @param array<mixed, mixed> $arPointData Service point data
+     * @return array<mixed, mixed> First coordinate or empty array
+     */
+    private function extractFirstCoordinate(array $arPointData): array
+    {
+        $mCoordinateList = data_get($arPointData, 'coordinates');
+
+        if (!is_array($mCoordinateList) || $mCoordinateList === []) {
+            return [];
+        }
+
+        $mFirstCoordinate = $mCoordinateList[0];
+
+        return is_array($mFirstCoordinate) ? $mFirstCoordinate : [];
     }
 }

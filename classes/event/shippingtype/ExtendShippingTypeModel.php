@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Classes\Event\ShippingType;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
 use Illuminate\Events\Dispatcher;
 use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
@@ -10,7 +10,7 @@ use Lovata\OrdersShopaholic\Models\ShippingType;
 
 /**
  * Class ExtendShippingTypeModel
- * @package Logingrupa\PostNordShipping\Classes\Event\ShippingType
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType
  *
  * Extends the ShippingType model to add the is_postnord field as fillable
  * and extends ShippingTypeItem to cache the attribute.

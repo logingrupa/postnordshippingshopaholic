@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Classes\Store\ServicePoint;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint;
 
-use Logingrupa\PostNordShipping\Classes\Api\PostNordClient;
-use Logingrupa\PostNordShipping\Models\ServicePoint;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
+use Logingrupa\PostNordShippingShopaholic\Models\ServicePoint;
 use Lovata\Toolbox\Classes\Store\AbstractStoreWithParam;
 
 /**
  * Class ServicePointListStore
- * @package Logingrupa\PostNordShipping\Classes\Store\ServicePoint
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint
  *
  * Extends AbstractStoreWithParam to provide cached ID lists of service points
  * keyed by postal code. When a postal code is not found in the local DB,

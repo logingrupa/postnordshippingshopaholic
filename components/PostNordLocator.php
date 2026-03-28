@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Components;
+namespace Logingrupa\PostNordShippingShopaholic\Components;
 
 use Cms\Classes\ComponentBase;
 use Illuminate\Support\Facades\Session;
-use Logingrupa\PostNordShipping\Classes\Store\ServicePoint\ServicePointListStore;
-use Logingrupa\PostNordShipping\Models\ServicePoint;
+use Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint\ServicePointListStore;
+use Logingrupa\PostNordShippingShopaholic\Models\ServicePoint;
 
 /**
  * Class PostNordLocator
- * @package Logingrupa\PostNordShipping\Components
+ * @package Logingrupa\PostNordShippingShopaholic\Components
  *
  * AJAX component for PostNord service point selection.
  * Provides postal code input and service point radio buttons via Larajax.
@@ -29,8 +29,8 @@ class PostNordLocator extends ComponentBase
     public function componentDetails(): array
     {
         return [
-            'name'        => 'logingrupa.postnordshipping::lang.component.name',
-            'description' => 'logingrupa.postnordshipping::lang.component.description',
+            'name'        => 'logingrupa.postnordshippingshopaholic::lang.component.name',
+            'description' => 'logingrupa.postnordshippingshopaholic::lang.component.description',
         ];
     }
 
@@ -40,7 +40,7 @@ class PostNordLocator extends ComponentBase
      * Expects POST data: postal_code (string, 4-5 digits)
      * Returns partial update for #postnord-service-points container.
      *
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     public function onGetServicePoints(): array
     {
@@ -53,8 +53,11 @@ class PostNordLocator extends ComponentBase
             return ['#postnord-service-points' => $this->renderPartial('@service-points')];
         }
 
+        /** @var ServicePointListStore $obStore */
+        $obStore = ServicePointListStore::instance();
+
         /** @var list<int> $arIdList */
-        $arIdList = ServicePointListStore::instance()->get($sPostalCode);
+        $arIdList = $obStore->get($sPostalCode);
 
         $arServicePointList = [];
         foreach ($arIdList as $iServicePointId) {

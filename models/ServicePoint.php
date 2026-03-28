@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping\Models;
+namespace Logingrupa\PostNordShippingShopaholic\Models;
 
 use October\Rain\Database\Model;
 use October\Rain\Database\Traits\Validation;
 
 /**
  * Class ServicePoint
- * @package Logingrupa\PostNordShipping\Models
+ * @package Logingrupa\PostNordShippingShopaholic\Models
  *
  * Local cache of PostNord service point data from the V5 API.
  *

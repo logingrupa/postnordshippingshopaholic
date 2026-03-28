@@ -18,7 +18,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Logingrupa\\PostNordShipping\\": ""
+            "Logingrupa\\PostNordShippingShopaholic\\": ""
         }
     },
     "scripts": {
@@ -34,7 +34,7 @@
     },
     "extra": {
         "october": {
-            "plugin": "Logingrupa.PostNordShipping",
+            "plugin": "Logingrupa.PostNordShippingShopaholic",
             "installer-name": "postnordshippingshopaholic"
         }
     }

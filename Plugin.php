@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShipping;
+namespace Logingrupa\PostNordShippingShopaholic;
 
 use Event;
-use Logingrupa\PostNordShipping\Classes\Event\Order\ExtendOrderModel;
-use Logingrupa\PostNordShipping\Classes\Event\ShippingType\ExtendShippingTypeFieldsHandler;
-use Logingrupa\PostNordShipping\Classes\Event\ShippingType\ExtendShippingTypeModel;
-use Logingrupa\PostNordShipping\Components\PostNordLocator;
-use Logingrupa\PostNordShipping\Models\Settings;
+use Logingrupa\PostNordShippingShopaholic\Classes\Event\Order\ExtendOrderModel;
+use Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType\ExtendShippingTypeFieldsHandler;
+use Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType\ExtendShippingTypeModel;
+use Logingrupa\PostNordShippingShopaholic\Components\PostNordLocator;
+use Logingrupa\PostNordShippingShopaholic\Models\Settings;
 use System\Classes\PluginBase;
 
 /**
  * Class Plugin
- * @package Logingrupa\PostNordShipping
+ * @package Logingrupa\PostNordShippingShopaholic
  * @author Logingrupa
  */
 class Plugin extends PluginBase
@@ -36,8 +36,8 @@ class Plugin extends PluginBase
     public function pluginDetails(): array
     {
         return [
-            'name'        => 'logingrupa.postnordshipping::lang.plugin.name',
-            'description' => 'logingrupa.postnordshipping::lang.plugin.description',
+            'name'        => 'logingrupa.postnordshippingshopaholic::lang.plugin.name',
+            'description' => 'logingrupa.postnordshippingshopaholic::lang.plugin.description',
             'author'      => 'Logingrupa',
             'icon'        => 'icon-map-marker',
         ];
@@ -73,8 +73,8 @@ class Plugin extends PluginBase
     {
         return [
             'settings' => [
-                'label'       => 'logingrupa.postnordshipping::lang.settings.label',
-                'description' => 'logingrupa.postnordshipping::lang.settings.description',
+                'label'       => 'logingrupa.postnordshippingshopaholic::lang.settings.label',
+                'description' => 'logingrupa.postnordshippingshopaholic::lang.settings.description',
                 'category'    => 'Shopaholic',
                 'icon'        => 'icon-map-marker',
                 'class'       => Settings::class,
