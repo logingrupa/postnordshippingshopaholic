@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
-use Illuminate\Events\Dispatcher;
 use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
 use Lovata\OrdersShopaholic\Models\ShippingType;
 
@@ -22,7 +21,7 @@ class ExtendShippingTypeModel
     /**
      * Register event listeners
      */
-    public function subscribe(Dispatcher $obDispatcher): void
+    public function subscribe($obDispatcher): void
     {
         ShippingTypeItem::extend(function (ShippingTypeItem $obItem): void {
             $obItem->addDynamicMethod('getPickupProviderAttribute', function () use ($obItem): ?string {

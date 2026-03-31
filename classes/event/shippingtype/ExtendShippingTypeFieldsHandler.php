@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
 use Event;
-use Illuminate\Events\Dispatcher;
 use Lovata\OrdersShopaholic\Controllers\ShippingTypes;
 use Lovata\OrdersShopaholic\Models\ShippingType;
 
@@ -25,7 +24,7 @@ class ExtendShippingTypeFieldsHandler
     /**
      * Register event listeners
      */
-    public function subscribe(Dispatcher $obDispatcher): void
+    public function subscribe($obDispatcher): void
     {
         $obDispatcher->listen(
             'backend.form.extendFields',

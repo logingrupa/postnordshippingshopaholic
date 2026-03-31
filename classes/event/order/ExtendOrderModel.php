@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\Order;
 
-use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Session;
 use Lovata\OrdersShopaholic\Models\Order;
 
@@ -24,7 +23,7 @@ class ExtendOrderModel
     /**
      * Register event listeners
      */
-    public function subscribe(Dispatcher $obDispatcher): void
+    public function subscribe($obDispatcher): void
     {
         $obDispatcher->listen(
             'shopaholic.order.after_create',
