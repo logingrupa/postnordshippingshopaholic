@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
+use Event;
 use Illuminate\Events\Dispatcher;
 use Lovata\OrdersShopaholic\Controllers\ShippingTypes;
 use Lovata\OrdersShopaholic\Models\ShippingType;
@@ -12,10 +13,15 @@ use Lovata\OrdersShopaholic\Models\ShippingType;
  * Class ExtendShippingTypeFieldsHandler
  * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType
  *
- * Adds the "Is PostNord Pickup" checkbox to the ShippingType backend form.
+ * Adds a "Pickup Provider" dropdown to the ShippingType backend form.
+ * Uses an event-driven pattern (like PaymentMethod gateway_id) so each
+ * carrier plugin can register itself without needing its own DB column.
  */
 class ExtendShippingTypeFieldsHandler
 {
+    /** Event fired to collect pickup provider options from all carrier plugins */
+    public const EVENT_GET_PICKUP_PROVIDER_LIST = 'shopaholic.shipping_type.get_pickup_provider_list';
+
     /**
      * Register event listeners
      */
@@ -24,6 +30,11 @@ class ExtendShippingTypeFieldsHandler
         $obDispatcher->listen(
             'backend.form.extendFields',
             [self::class, 'handleExtendFields']
+        );
+
+        $obDispatcher->listen(
+            self::EVENT_GET_PICKUP_PROVIDER_LIST,
+            [self::class, 'handleGetPickupProviderList']
         );
     }
 
@@ -42,13 +53,59 @@ class ExtendShippingTypeFieldsHandler
             return;
         }
 
-        $obFormWidget->addFields([
-            'is_postnord' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.is_postnord',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.is_postnord_comment',
-                'type'    => 'checkbox',
-                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_postnord',
+        $obFormWidget->addTabFields([
+            'property[pickup_provider]' => [
+                'label'       => 'logingrupa.postnordshippingshopaholic::lang.field.pickup_provider',
+                'comment'     => 'logingrupa.postnordshippingshopaholic::lang.field.pickup_provider_comment',
+                'type'        => 'dropdown',
+                'emptyOption' => 'lovata.toolbox::lang.field.empty',
+                'tab'         => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'options'     => self::getPickupProviderList(),
             ],
         ]);
+    }
+
+    /**
+     * Register PostNord as a pickup provider option
+     *
+     * @return array<string, string>
+     */
+    public static function handleGetPickupProviderList(): array
+    {
+        return [
+            'postnord' => 'PostNord',
+        ];
+    }
+
+    /**
+     * Collect pickup provider options from all registered plugins via event
+     *
+     * @return array<string, string>
+     */
+    private static function getPickupProviderList(): array
+    {
+        /** @var array<string, string> $arResult */
+        $arResult = [];
+
+        $mEventResult = Event::fire(self::EVENT_GET_PICKUP_PROVIDER_LIST);
+        if (empty($mEventResult)) {
+            return $arResult;
+        }
+
+        /** @var array<int, mixed> $arEventResult */
+        $arEventResult = $mEventResult;
+
+        foreach ($arEventResult as $arProviderList) {
+            if (empty($arProviderList) || !is_array($arProviderList)) {
+                continue;
+            }
+
+            /** @var array<string, string> $arProviderList */
+            $arResult = array_merge($arResult, $arProviderList);
+        }
+
+        asort($arResult);
+
+        return $arResult;
     }
 }

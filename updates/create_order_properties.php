@@ -1,8 +1,12 @@
-<?php
+<?php namespace Logingrupa\PostNordShippingShopaholic\Updates;
 
 use Illuminate\Support\Facades\DB;
 use October\Rain\Database\Updates\Migration;
 
+/**
+ * Class CreateOrderProperties
+ * @package Logingrupa\PostNordShippingShopaholic\Updates
+ */
 class CreateOrderProperties extends Migration
 {
     private const ORDER_PROPERTIES_TABLE = 'lovata_orders_shopaholic_addition_properties';

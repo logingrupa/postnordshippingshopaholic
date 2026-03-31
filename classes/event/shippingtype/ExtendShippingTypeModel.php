@@ -12,28 +12,44 @@ use Lovata\OrdersShopaholic\Models\ShippingType;
  * Class ExtendShippingTypeModel
  * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType
  *
- * Extends the ShippingType model to add the is_postnord field as fillable
- * and extends ShippingTypeItem to cache the attribute.
+ * Extends ShippingTypeItem to expose pickup_provider from the property JSON column.
+ * No schema changes needed — uses the native ShippingType::$property JSON field.
  */
 class ExtendShippingTypeModel
 {
+    public const PICKUP_PROVIDER_POSTNORD = 'postnord';
+
     /**
      * Register event listeners
      */
     public function subscribe(Dispatcher $obDispatcher): void
     {
-        ShippingType::extend(function (ShippingType $obModel): void {
-            $obModel->fillable[] = 'is_postnord';
-
-            if (!in_array('is_postnord', $obModel->cached)) {
-                $obModel->cached[] = 'is_postnord';
-            }
-        });
-
         ShippingTypeItem::extend(function (ShippingTypeItem $obItem): void {
+            $obItem->addDynamicMethod('getPickupProviderAttribute', function () use ($obItem): ?string {
+                $arPropertyList = $obItem->getAttribute('property');
+                if (!is_array($arPropertyList)) {
+                    return null;
+                }
+
+                $mProvider = $arPropertyList['pickup_provider'] ?? null;
+
+                return is_string($mProvider) && $mProvider !== '' ? $mProvider : null;
+            });
+
             $obItem->addDynamicMethod('getIsPostnordAttribute', function () use ($obItem): bool {
-                return (bool) $obItem->getAttribute('is_postnord');
+                /** @var string|null $sProvider */
+                $sProvider = $obItem->pickup_provider;
+
+                return $sProvider === self::PICKUP_PROVIDER_POSTNORD;
             });
         });
+    }
+
+    /**
+     * Check if a ShippingType model is PostNord pickup
+     */
+    public static function isPostNord(ShippingType $obShippingType): bool
+    {
+        return $obShippingType->getProperty('pickup_provider') === self::PICKUP_PROVIDER_POSTNORD;
     }
 }

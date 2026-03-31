@@ -1,13 +1,21 @@
-<?php
+<?php namespace Logingrupa\PostNordShippingShopaholic\Updates;
 
 use October\Rain\Database\Schema\Blueprint;
 use October\Rain\Database\Updates\Migration;
 use Schema;
 
+/**
+ * Class CreateServicePointsTable
+ * @package Logingrupa\PostNordShippingShopaholic\Updates
+ */
 class CreateServicePointsTable extends Migration
 {
     public function up()
     {
+        if (Schema::hasTable('logingrupa_postnord_service_points')) {
+            return;
+        }
+
         Schema::create('logingrupa_postnord_service_points', function (Blueprint $obTable) {
             $obTable->increments('id');
             $obTable->string('service_point_id')->index();
