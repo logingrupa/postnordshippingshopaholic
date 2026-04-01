@@ -18,9 +18,13 @@ return [
         'api_key_comment'          => 'API key from the PostNord Developer Portal.',
         'country_code'             => 'Country Code',
         'max_results'              => 'Maximum results',
+        'max_results_comment'      => 'Number of nearest pickup points to show (1–50).',
         'pickup_provider'          => 'Pickup Provider',
         'pickup_provider_comment'  => 'Select which carrier plugin handles pickup point selection for this shipping method.',
         'tab_pickup'               => 'Pickup Points',
+        'tab_section_label'        => 'PostNord Pickup Points Active',
+        'tab_section_comment'      => 'This shipping type uses the PostNord service point locator. Add the PostNordLocator component to your checkout template so customers can select a pickup point.',
+        'country_code_comment'     => 'Two-letter ISO country code for service point lookup (e.g. NO, LV, LT). Overrides the global default when set.',
     ],
     'settings' => [
         'label'       => 'PostNord Shipping',

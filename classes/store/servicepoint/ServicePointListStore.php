@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint;
 
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordShippingProcessor;
 use Logingrupa\PostNordShippingShopaholic\Models\ServicePoint;
+use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
+use Lovata\OrdersShopaholic\Models\ShippingType;
 use Lovata\Toolbox\Classes\Store\AbstractStoreWithParam;
 
 /**
@@ -62,12 +65,25 @@ class ServicePointListStore extends AbstractStoreWithParam
     }
 
     /**
-     * Fetch service points from PostNord API and save to local DB
+     * Fetch service points from PostNord API and save to local DB.
+     * Resolves API credentials from the first PostNord ShippingType in the DB.
      */
     private function fetchAndPersistFromApi(string $sPostalCode): void
     {
-        $arServicePointList = PostNordClient::fromSettings()
-            ->findNearestByAddress($sPostalCode);
+        $obShippingTypeItem = $this->resolvePostNordShippingTypeItem();
+
+        if ($obShippingTypeItem === null) {
+            return;
+        }
+
+        $arProperty = $obShippingTypeItem->property;
+        $arProperty = is_array($arProperty) ? $arProperty : [];
+        $iMaxResults = isset($arProperty['postnord_max_results']) && is_numeric($arProperty['postnord_max_results'])
+            ? (int) $arProperty['postnord_max_results']
+            : 10;
+
+        $arServicePointList = PostNordClient::fromShippingType($obShippingTypeItem)
+            ->findNearestByAddress($sPostalCode, $iMaxResults);
 
         foreach ($arServicePointList as $arServicePointData) {
             ServicePoint::updateOrCreate(
@@ -75,5 +91,22 @@ class ServicePointListStore extends AbstractStoreWithParam
                 $arServicePointData
             );
         }
+    }
+
+    /**
+     * Resolve the first active PostNord ShippingType item.
+     * Returns null if no PostNord shipping type is configured.
+     */
+    private function resolvePostNordShippingTypeItem(): ?ShippingTypeItem
+    {
+        $obShippingType = ShippingType::where('api_class', PostNordShippingProcessor::class)->first();
+
+        if (!$obShippingType instanceof ShippingType) {
+            return null;
+        }
+
+        $obItem = ShippingTypeItem::make($obShippingType->id);
+
+        return $obItem->isEmpty() ? null : $obItem;
     }
 }

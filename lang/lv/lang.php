@@ -18,9 +18,13 @@ return [
         'api_key_comment'          => 'API atslēga no PostNord izstrādātāju portāla.',
         'country_code'             => 'Valsts kods',
         'max_results'              => 'Maksimālais rezultātu skaits',
+        'max_results_comment'      => 'Tuvāko izsniegšanas punktu skaits, kas tiks parādīts (1–50).',
         'pickup_provider'          => 'Pakomātu pakalpojumu sniedzējs',
         'pickup_provider_comment'  => 'Izvēlieties kurjera spraudni, kas apstrādā izsniegšanas punktu izvēli šai piegādes metodei.',
         'tab_pickup'               => 'Izsniegšanas punkti',
+        'tab_section_label'        => 'PostNord izsniegšanas punkti aktīvi',
+        'tab_section_comment'      => 'Šis piegādes veids izmanto PostNord izsniegšanas punktu meklētāju. Pievienojiet PostNordLocator komponenti pasūtījuma noformēšanas veidnei, lai klienti varētu izvēlēties izsniegšanas punktu.',
+        'country_code_comment'     => 'Divu burtu ISO valsts kods izsniegšanas punktu meklēšanai (piem. NO, LV, LT). Ja iestatīts, aizstāj globālo noklusējumu.',
     ],
     'settings' => [
         'label'       => 'PostNord piegāde',

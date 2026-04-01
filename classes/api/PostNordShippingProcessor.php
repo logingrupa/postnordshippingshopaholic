@@ -30,15 +30,56 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
 
     /**
      * Return backend form fields to display when this api_class is selected.
-     * The upstream ExtendShippingTypeFieldsHandler calls this automatically.
-     * PostNord needs no additional configuration fields beyond the standard
-     * shipping type settings (name, price, etc.).
+     * The upstream ExtendShippingTypeFieldsHandler calls $sApiClass::getFields()
+     * and renders these under the "Pickup Points" tab on the ShippingType form.
+     * Values are stored in the ShippingType's `property` JSON column.
      *
      * @return array<string, array<string, mixed>>
      */
     public static function getFields(): array
     {
-        return [];
+        return [
+            'postnord_info' => [
+                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.tab_section_label',
+                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.tab_section_comment',
+                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'span'    => 'full',
+                'type'    => 'section',
+                'context' => ['create', 'update', 'preview'],
+            ],
+            'property[postnord_api_key]' => [
+                'label'    => 'logingrupa.postnordshippingshopaholic::lang.field.api_key',
+                'comment'  => 'logingrupa.postnordshippingshopaholic::lang.field.api_key_comment',
+                'tab'      => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'span'     => 'full',
+                'type'     => 'text',
+                'required' => true,
+                'context'  => ['create', 'update'],
+            ],
+            'property[postnord_country_code]' => [
+                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.country_code',
+                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.country_code_comment',
+                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'span'    => 'left',
+                'type'    => 'dropdown',
+                'default' => 'NO',
+                'options' => [
+                    'NO' => 'Norway',
+                    'LV' => 'Latvia',
+                    'LT' => 'Lithuania',
+                ],
+                'context' => ['create', 'update', 'preview'],
+            ],
+            'property[postnord_max_results]' => [
+                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.max_results',
+                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.max_results_comment',
+                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'span'    => 'right',
+                'type'    => 'number',
+                'default' => 10,
+                'context' => ['create', 'update', 'preview'],
+            ],
+        ];
     }
 
     /**

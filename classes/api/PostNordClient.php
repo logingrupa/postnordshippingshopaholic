@@ -6,7 +6,7 @@ namespace Logingrupa\PostNordShippingShopaholic\Classes\Api;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Logingrupa\PostNordShippingShopaholic\Models\Settings;
+use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
 
 /**
  * Class PostNordClient
@@ -14,6 +14,8 @@ use Logingrupa\PostNordShippingShopaholic\Models\Settings;
  *
  * HTTP client for the PostNord Service Points V5 API.
  * Responsible only for API communication and response parsing.
+ * Configuration (API key, country code) is read from the ShippingType property
+ * column, not from a separate settings model.
  */
 class PostNordClient
 {
@@ -30,12 +32,17 @@ class PostNordClient
     }
 
     /**
-     * Create a PostNordClient from backend settings
+     * Create a PostNordClient from a ShippingType item's property values.
+     * API key and country code are stored as property[postnord_api_key] and
+     * property[postnord_country_code] on the ShippingType form.
      */
-    public static function fromSettings(): self
+    public static function fromShippingType(ShippingTypeItem $obShippingTypeItem): self
     {
-        $mApiKey = Settings::get('api_key', '');
-        $mCountryCode = Settings::get('country_code', 'NO');
+        $arProperty = $obShippingTypeItem->property;
+        $arProperty = is_array($arProperty) ? $arProperty : [];
+
+        $mApiKey = $arProperty['postnord_api_key'] ?? '';
+        $mCountryCode = $arProperty['postnord_country_code'] ?? 'NO';
 
         return new self(
             self::mixedToString($mApiKey),

@@ -8,7 +8,6 @@ use Event;
 use Logingrupa\PostNordShippingShopaholic\Classes\Event\Order\ExtendOrderModel;
 use Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType\ExtendShippingTypeModel;
 use Logingrupa\PostNordShippingShopaholic\Components\PostNordLocator;
-use Logingrupa\PostNordShippingShopaholic\Models\Settings;
 use System\Classes\PluginBase;
 
 /**
@@ -63,22 +62,4 @@ class Plugin extends PluginBase
         ];
     }
 
-    /**
-     * Register backend settings
-     * @return array<string, array<string, mixed>>
-     */
-    public function registerSettings(): array
-    {
-        return [
-            'settings' => [
-                'label'       => 'logingrupa.postnordshippingshopaholic::lang.settings.label',
-                'description' => 'logingrupa.postnordshippingshopaholic::lang.settings.description',
-                'category'    => 'Shopaholic',
-                'icon'        => 'icon-map-marker',
-                'class'       => Settings::class,
-                'order'       => 500,
-                'permissions' => [],
-            ],
-        ];
-    }
 }
