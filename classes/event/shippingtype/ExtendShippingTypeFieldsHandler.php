@@ -2,48 +2,75 @@
 
 declare(strict_types=1);
 
-namespace Logingrupa\PostNordShippingShopaholic\Classes\Api;
+namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
-use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
-use Lovata\OrdersShopaholic\Interfaces\ShippingPriceProcessorInterface;
+use Event;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordShippingProcessor;
+use Lovata\OrdersShopaholic\Controllers\ShippingTypes;
+use Lovata\OrdersShopaholic\Models\ShippingType;
 
 /**
- * Class PostNordShippingProcessor
- * @package Logingrupa\PostNordShippingShopaholic\Classes\Api
+ * Class ExtendShippingTypeFieldsHandler
+ * @package Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType
  *
- * Registers PostNord as a shipping API class option in the ShippingType backend form.
- * Implements ShippingPriceProcessorInterface so it appears in the api_class dropdown
- * and provides its own field definitions via getFields().
+ * Always injects PostNord-specific fields into the ShippingType backend form,
+ * each with a client-side trigger that shows the field only when the api_class
+ * dropdown is set to PostNordShippingProcessor.
  *
- * PostNord does not calculate shipping price dynamically — the base price configured
- * on the shipping type's Settings tab is used. Pickup point selection is handled
- * at checkout by the PostNordLocator component.
+ * This enables dynamic tab appearance without a page reload: the fields exist in
+ * the DOM at all times, and the OctoberCMS trigger mechanism shows/hides them
+ * based on the current api_class dropdown value.
  */
-class PostNordShippingProcessor implements ShippingPriceProcessorInterface
+class ExtendShippingTypeFieldsHandler
 {
-    protected ShippingTypeItem $obShippingTypeItem;
-
-    public function __construct(ShippingTypeItem $obShippingTypeItem)
+    /**
+     * Register event listeners
+     *
+     * @param \Illuminate\Events\Dispatcher $obDispatcher
+     */
+    public function subscribe($obDispatcher): void
     {
-        $this->obShippingTypeItem = $obShippingTypeItem;
+        Event::listen('backend.form.extendFields', function ($obWidget): void {
+            $this->extendFields($obWidget);
+        });
     }
 
     /**
-     * Return backend form fields to display when this api_class is selected.
-     * The upstream ExtendShippingTypeFieldsHandler calls $sApiClass::getFields()
-     * and renders these under the "Pickup Points" tab on the ShippingType form.
-     * Values are stored in the ShippingType's `property` JSON column.
+     * Inject PostNord fields into the ShippingType form.
+     * Fields are always added regardless of current api_class value.
+     * Each field carries a trigger so it is only visible when
+     * api_class equals PostNordShippingProcessor::class.
      *
-     * Fields include trigger conditions so they respond to api_class dropdown
-     * changes without a page reload. The PostNord plugin's own
-     * ExtendShippingTypeFieldsHandler adds these fields unconditionally so they
-     * are always present in the DOM — trigger visibility handles the rest.
+     * @param \Backend\Widgets\Form $obWidget
+     */
+    protected function extendFields($obWidget): void
+    {
+        if (!$obWidget->getController() instanceof ShippingTypes) {
+            return;
+        }
+
+        if ($obWidget->isNested || empty($obWidget->context)) {
+            return;
+        }
+
+        if (!$obWidget->model instanceof ShippingType) {
+            return;
+        }
+
+        $obWidget->addTabFields($this->getPostNordFields());
+    }
+
+    /**
+     * Return field definitions for the PostNord "Pickup Points" tab.
+     * Every field has a trigger that hides it unless api_class is set to
+     * PostNordShippingProcessor — enabling instant client-side show/hide
+     * when the api_class dropdown changes.
      *
      * @return array<string, array<string, mixed>>
      */
-    public static function getFields(): array
+    protected function getPostNordFields(): array
     {
-        $sTriggerCondition = 'value[' . self::class . ']';
+        $sTriggerCondition = 'value[' . PostNordShippingProcessor::class . ']';
 
         return [
             'postnord_info' => [
@@ -107,35 +134,5 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
                 ],
             ],
         ];
-    }
-
-    /**
-     * PostNord is always valid — pickup point selection happens at checkout,
-     * not via shipping type configuration.
-     */
-    #[\Override]
-    public function validate(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Return the base price configured on the shipping type.
-     * PostNord does not use a live rate API — the store configures a flat
-     * shipping price in the standard price field on the Settings tab.
-     */
-    #[\Override]
-    public function getPrice(): float
-    {
-        return (float) $this->obShippingTypeItem->price_full;
-    }
-
-    /**
-     * No API response message for PostNord.
-     */
-    #[\Override]
-    public function getMessage(): string
-    {
-        return '';
     }
 }

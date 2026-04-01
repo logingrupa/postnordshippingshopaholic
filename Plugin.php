@@ -6,6 +6,7 @@ namespace Logingrupa\PostNordShippingShopaholic;
 
 use Event;
 use Logingrupa\PostNordShippingShopaholic\Classes\Event\Order\ExtendOrderModel;
+use Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType\ExtendShippingTypeFieldsHandler;
 use Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType\ExtendShippingTypeModel;
 use Logingrupa\PostNordShippingShopaholic\Components\PostNordLocator;
 use System\Classes\PluginBase;
@@ -48,6 +49,7 @@ class Plugin extends PluginBase
     {
         Event::subscribe(ExtendOrderModel::class);
         Event::subscribe(ExtendShippingTypeModel::class);
+        Event::subscribe(ExtendShippingTypeFieldsHandler::class);
     }
 
     /**
