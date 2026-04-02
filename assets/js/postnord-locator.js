@@ -2,7 +2,6 @@
  * PostNord Service Point Locator
  *
  * Vanilla JS (ES6+) with Larajax for AJAX requests.
- * No jQuery, no build step required.
  *
  * @see PostNordLocator component (components/PostNordLocator.php)
  */
