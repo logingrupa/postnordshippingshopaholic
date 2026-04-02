@@ -38,8 +38,9 @@ class PostNordClient
      */
     public static function fromShippingType(ShippingTypeItem $obShippingTypeItem): self
     {
-        $arProperty = $obShippingTypeItem->property;
-        $arProperty = is_array($arProperty) ? $arProperty : [];
+        /** @var mixed $mProperty */
+        $mProperty = $obShippingTypeItem->property;
+        $arProperty = is_array($mProperty) ? $mProperty : [];
 
         $mApiKey = $arProperty['postnord_api_key'] ?? '';
         $mCountryCode = $arProperty['postnord_country_code'] ?? 'NO';

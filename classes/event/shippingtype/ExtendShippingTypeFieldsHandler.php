@@ -32,8 +32,10 @@ class ExtendShippingTypeFieldsHandler
      */
     public function subscribe($obDispatcher): void
     {
-        Event::listen('backend.form.extendFields', function ($obWidget): void {
-            $this->extendFields($obWidget);
+        Event::listen('backend.form.extendFields', function (mixed $obWidget): void {
+            if ($obWidget instanceof \Backend\Widgets\Form) {
+                $this->extendFields($obWidget);
+            }
         });
 
         $this->extendShippingTypesController();
@@ -48,10 +50,10 @@ class ExtendShippingTypeFieldsHandler
      */
     protected function extendShippingTypesController(): void
     {
-        ShippingTypes::extend(function ($obController): void {
+        ShippingTypes::extend(function (ShippingTypes $obController): void {
             $obController->addDynamicMethod(
                 'onTestPostNordConnection',
-                function () use ($obController): void {
+                function (): void {
                     $arProperty  = post('ShippingType[property]', []);
                     $arProperty  = is_array($arProperty) ? $arProperty : [];
                     $mApiKey     = $arProperty['postnord_api_key'] ?? '';

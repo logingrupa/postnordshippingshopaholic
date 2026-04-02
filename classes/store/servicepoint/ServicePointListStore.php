@@ -76,8 +76,9 @@ class ServicePointListStore extends AbstractStoreWithParam
             return;
         }
 
-        $arProperty = $obShippingTypeItem->property;
-        $arProperty = is_array($arProperty) ? $arProperty : [];
+        /** @var mixed $mProperty */
+        $mProperty = $obShippingTypeItem->property;
+        $arProperty = is_array($mProperty) ? $mProperty : [];
         $iMaxResults = isset($arProperty['postnord_max_results']) && is_numeric($arProperty['postnord_max_results'])
             ? (int) $arProperty['postnord_max_results']
             : 10;
