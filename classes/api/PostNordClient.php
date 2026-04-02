@@ -51,6 +51,71 @@ class PostNordClient
     }
 
     /**
+     * Test the API connection using a known postal code for the configured country.
+     * Returns a result array with 'success' (bool) and 'message' (string).
+     *
+     * @return array{success: bool, message: string}
+     */
+    public function testConnection(): array
+    {
+        if ($this->sApiKey === '') {
+            return ['success' => false, 'message' => 'API key is empty.'];
+        }
+
+        $arTestPostalCodes = [
+            'NO' => '0001',
+            'LV' => '1001',
+            'LT' => '01001',
+        ];
+
+        $sTestPostalCode = $arTestPostalCodes[$this->sCountryCode] ?? '0001';
+
+        try {
+            $obResponse = Http::get(self::API_BASE_URL, [
+                'apikey'                => $this->sApiKey,
+                'countryCode'           => $this->sCountryCode,
+                'postalCode'            => $sTestPostalCode,
+                'numberOfServicePoints' => 1,
+            ]);
+
+            if ($obResponse->status() === 401 || $obResponse->status() === 403) {
+                return [
+                    'success' => false,
+                    'message' => 'Authentication failed (HTTP ' . $obResponse->status() . '). Check the API key.',
+                ];
+            }
+
+            if (!$obResponse->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'PostNord API returned HTTP ' . $obResponse->status() . '.',
+                ];
+            }
+
+            $arData = $obResponse->json();
+
+            if (!is_array($arData)) {
+                return ['success' => false, 'message' => 'PostNord API returned an unexpected response format.'];
+            }
+
+            $mServicePoints = data_get($arData, 'servicePointInformationResponse.servicePoints');
+
+            $iCount = is_array($mServicePoints) ? count($mServicePoints) : 0;
+
+            return [
+                'success' => true,
+                'message' => 'Connection successful. Found ' . $iCount . ' service point(s) near postal code ' . $sTestPostalCode . ' (' . $this->sCountryCode . ').',
+            ];
+        } catch (\Exception $obException) {
+            Log::warning('PostNord API test connection failed', [
+                'message' => $obException->getMessage(),
+            ]);
+
+            return ['success' => false, 'message' => 'Connection error: ' . $obException->getMessage()];
+        }
+    }
+
+    /**
      * Find nearest service points by postal code
      *
      * @param string $sPostalCode Postal code to search near

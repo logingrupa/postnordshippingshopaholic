@@ -25,6 +25,9 @@ return [
         'tab_section_label'        => 'PostNord hentepunkter er aktive',
         'tab_section_comment'      => 'Denne frakttypen bruker PostNord hentepunktvelger. Legg til PostNordLocator-komponenten i kassemalen slik at kunder kan velge et hentepunkt.',
         'country_code_comment'     => 'To-bokstavers ISO-landskode for hentepunktsøk (f.eks. NO, LV, LT). Overstyrer den globale standarden når den er angitt.',
+        'btn_test_connection'      => 'Test tilkobling',
+        'btn_test_connection_hint' => 'Tester API-nøkkelen og landskoden mot et kjent postnummer uten å lagre.',
+        'test_connection_no_key'   => 'Skriv inn en API-nøkkel før du tester tilkoblingen.',
     ],
     'settings' => [
         'label'       => 'PostNord frakt',

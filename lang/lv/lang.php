@@ -25,6 +25,9 @@ return [
         'tab_section_label'        => 'PostNord izsniegšanas punkti aktīvi',
         'tab_section_comment'      => 'Šis piegādes veids izmanto PostNord izsniegšanas punktu meklētāju. Pievienojiet PostNordLocator komponenti pasūtījuma noformēšanas veidnei, lai klienti varētu izvēlēties izsniegšanas punktu.',
         'country_code_comment'     => 'Divu burtu ISO valsts kods izsniegšanas punktu meklēšanai (piem. NO, LV, LT). Ja iestatīts, aizstāj globālo noklusējumu.',
+        'btn_test_connection'      => 'Pārbaudīt savienojumu',
+        'btn_test_connection_hint' => 'Pārbauda API atslēgu un valsts kodu ar zināmu pasta indeksu, nesaglabājot iestatījumus.',
+        'test_connection_no_key'   => 'Lūdzu, ievadiet API atslēgu pirms savienojuma pārbaudes.',
     ],
     'settings' => [
         'label'       => 'PostNord piegāde',

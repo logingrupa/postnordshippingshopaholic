@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Event\ShippingType;
 
 use Event;
+use Flash;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordShippingProcessor;
 use Lovata\OrdersShopaholic\Controllers\ShippingTypes;
 use Lovata\OrdersShopaholic\Models\ShippingType;
@@ -32,6 +34,49 @@ class ExtendShippingTypeFieldsHandler
     {
         Event::listen('backend.form.extendFields', function ($obWidget): void {
             $this->extendFields($obWidget);
+        });
+
+        $this->extendShippingTypesController();
+    }
+
+    /**
+     * Extend the ShippingTypes backend controller with the PostNord test
+     * connection AJAX handler.
+     *
+     * The handler reads API key and country code from the unsaved form POST
+     * data so the admin can verify credentials before saving.
+     */
+    protected function extendShippingTypesController(): void
+    {
+        ShippingTypes::extend(function ($obController): void {
+            $obController->addDynamicMethod(
+                'onTestPostNordConnection',
+                function () use ($obController): void {
+                    $arProperty  = post('ShippingType[property]', []);
+                    $arProperty  = is_array($arProperty) ? $arProperty : [];
+                    $mApiKey     = $arProperty['postnord_api_key'] ?? '';
+                    $mCountryCode = $arProperty['postnord_country_code'] ?? 'NO';
+
+                    $sApiKey     = is_string($mApiKey) ? trim($mApiKey) : '';
+                    $sCountryCode = is_string($mCountryCode) ? trim($mCountryCode) : 'NO';
+
+                    if ($sApiKey === '') {
+                        Flash::error(
+                            trans('logingrupa.postnordshippingshopaholic::lang.field.test_connection_no_key')
+                        );
+                        return;
+                    }
+
+                    $obClient  = new PostNordClient($sApiKey, $sCountryCode);
+                    $arResult  = $obClient->testConnection();
+
+                    if ($arResult['success']) {
+                        Flash::success($arResult['message']);
+                    } else {
+                        Flash::error($arResult['message']);
+                    }
+                }
+            );
         });
     }
 
@@ -127,6 +172,18 @@ class ExtendShippingTypeFieldsHandler
                 'type'    => 'number',
                 'default' => 10,
                 'context' => ['create', 'update', 'preview'],
+                'trigger' => [
+                    'action'    => 'show',
+                    'field'     => 'api_class',
+                    'condition' => $sTriggerCondition,
+                ],
+            ],
+            'postnord_test_connection' => [
+                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+                'type'    => 'partial',
+                'path'    => '$/logingrupa/postnordshippingshopaholic/partials/_test_connection',
+                'span'    => 'full',
+                'context' => ['create', 'update'],
                 'trigger' => [
                     'action'    => 'show',
                     'field'     => 'api_class',

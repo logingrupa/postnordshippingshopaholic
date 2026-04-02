@@ -25,6 +25,9 @@ return [
         'tab_section_label'        => 'PostNord Pickup Points Active',
         'tab_section_comment'      => 'This shipping type uses the PostNord service point locator. Add the PostNordLocator component to your checkout template so customers can select a pickup point.',
         'country_code_comment'     => 'Two-letter ISO country code for service point lookup (e.g. NO, LV, LT). Overrides the global default when set.',
+        'btn_test_connection'      => 'Test Connection',
+        'btn_test_connection_hint' => 'Tests the API key and country code against a known postal code without saving.',
+        'test_connection_no_key'   => 'Please enter an API key before testing the connection.',
     ],
     'settings' => [
         'label'       => 'PostNord Shipping',
