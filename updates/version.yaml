@@ -3,3 +3,5 @@
     - create_service_points_table.php
     - extend_shipping_types_table.php
     - create_order_properties.php
+"1.0.1":
+    - "Service point index gets an explicit name under the 64 character MySQL limit; the generated name was 66 characters and failed the table creation."

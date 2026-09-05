@@ -30,7 +30,7 @@ class CreateServicePointsTable extends Migration
             $obTable->unsignedInteger('distance_in_meters')->nullable();
             $obTable->timestamps();
 
-            $obTable->index(['postal_code', 'country_code']);
+            $obTable->index(['postal_code', 'country_code'], 'logingrupa_postnord_sp_postal_code_country_code_index');
         });
     }
 
