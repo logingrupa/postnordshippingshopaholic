@@ -5,3 +5,5 @@
     - create_order_properties.php
 "1.0.1":
     - "Service point index gets an explicit name under the 64 character MySQL limit; the generated name was 66 characters and failed the table creation."
+"1.0.2":
+    - "Norwegian backend strings move from lang/no to lang/nb-no, so the locator settings and field labels render in Norwegian on nailscosmetics.no instead of English."
