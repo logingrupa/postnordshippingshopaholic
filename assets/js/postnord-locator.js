@@ -1,7 +1,8 @@
 /**
  * PostNord Service Point Locator
  *
- * Vanilla JS (ES6+) with Larajax for AJAX requests.
+ * Vanilla JS (ES6+) with Larajax (and legacy oc.request fallback).
+ * Uses document-level event delegation so it works when injected via AJAX.
  *
  * @see PostNordLocator component (components/PostNordLocator.php)
  */
@@ -17,93 +18,92 @@
     /** @type {number} Minimum postal code length to trigger search */
     const MIN_POSTAL_LENGTH = 4;
 
-    /**
-     * Initialize the PostNord locator when DOM is ready.
-     */
-    document.addEventListener('DOMContentLoaded', function () {
-        /** @type {HTMLElement|null} */
-        const obContainer = document.querySelector('[data-postnord-locator]');
-
-        if (!obContainer) {
+    document.addEventListener('input', function (obEvent) {
+        const obTarget = obEvent.target;
+        if (!(obTarget instanceof HTMLInputElement) || !obTarget.matches('[data-postnord-postal-input]')) {
             return;
         }
 
-        /** @type {HTMLInputElement|null} */
-        const obPostalInput = obContainer.querySelector('[data-postnord-postal-input]');
-
-        if (!obPostalInput) {
+        const obContainer = obTarget.closest('[data-postnord-locator]');
+        if (!(obContainer instanceof HTMLElement)) {
             return;
         }
 
-        obPostalInput.addEventListener('input', function () {
-            /** @type {string} */
-            const sPostalCode = obPostalInput.value.trim();
+        const sPostalCode = obTarget.value.trim();
 
-            if (iDebounceTimeout) {
-                clearTimeout(iDebounceTimeout);
-            }
+        if (iDebounceTimeout !== null) {
+            clearTimeout(iDebounceTimeout);
+        }
 
-            if (sPostalCode.length < MIN_POSTAL_LENGTH) {
-                return;
-            }
+        if (sPostalCode.length < MIN_POSTAL_LENGTH) {
+            return;
+        }
 
-            iDebounceTimeout = setTimeout(function () {
-                fetchPostNordPoints(sPostalCode);
-            }, DEBOUNCE_DELAY);
-        });
+        const sShippingTypeId = obContainer.dataset.shippingTypeId || '';
 
-        obContainer.addEventListener('change', function (obEvent) {
-            /** @type {HTMLInputElement} */
-            const obTarget = obEvent.target;
-
-            if (!obTarget.matches('[data-postnord-point]')) {
-                return;
-            }
-
-            selectServicePoint(obTarget);
-        });
+        iDebounceTimeout = window.setTimeout(function () {
+            fetchPostNordPoints(sPostalCode, sShippingTypeId);
+        }, DEBOUNCE_DELAY);
     });
+
+    document.addEventListener('change', function (obEvent) {
+        const obTarget = obEvent.target;
+        if (!(obTarget instanceof HTMLInputElement) || !obTarget.matches('[data-postnord-point]')) {
+            return;
+        }
+
+        selectServicePoint(obTarget);
+    });
+
+    /**
+     * Execute a Larajax (jax) or legacy October (oc.request) call.
+     *
+     * @param {string} sHandler
+     * @param {Record<string, unknown>} obOptions
+     * @returns {void}
+     */
+    function runAjax(sHandler, obOptions) {
+        if (typeof window.jax !== 'undefined' && typeof window.jax.ajax === 'function') {
+            window.jax.ajax(sHandler, obOptions);
+            return;
+        }
+
+        if (typeof window.oc !== 'undefined' && typeof window.oc.request === 'function') {
+            window.oc.request('#postnord-locator', sHandler, obOptions);
+        }
+    }
 
     /**
      * Fetch PostNord service points via Larajax.
      *
-     * @param {string} sPostalCode The user-entered postal code
+     * @param {string} sPostalCode
+     * @param {string} sShippingTypeId
      * @returns {void}
      */
-    function fetchPostNordPoints(sPostalCode) {
-        if (typeof oc === 'undefined' || typeof oc.request === 'undefined') {
-            return;
+    function fetchPostNordPoints(sPostalCode, sShippingTypeId) {
+        /** @type {Record<string, string>} */
+        const obData = { postal_code: sPostalCode };
+        if (sShippingTypeId !== '') {
+            obData.shipping_type_id = sShippingTypeId;
         }
 
-        oc.request('#postnord-locator', 'PostNordLocator::onGetServicePoints', {
-            data: { postal_code: sPostalCode },
-            update: { 'PostNordLocator::service-points': '#postnord-service-points' }
+        runAjax('PostNordLocator::onGetServicePoints', {
+            data: obData
         });
     }
 
     /**
      * Save selected service point to session via Larajax.
      *
-     * @param {HTMLInputElement} obRadio The selected radio button element
+     * @param {HTMLInputElement} obRadio
      * @returns {void}
      */
     function selectServicePoint(obRadio) {
-        /** @type {string} */
-        const sPointId = obRadio.dataset.pointId || '';
-        /** @type {string} */
-        const sPointName = obRadio.dataset.pointName || '';
-        /** @type {string} */
-        const sPointAddress = obRadio.dataset.pointAddress || '';
-
-        if (typeof oc === 'undefined' || typeof oc.request === 'undefined') {
-            return;
-        }
-
-        oc.request('#postnord-locator', 'PostNordLocator::onSelectServicePoint', {
+        runAjax('PostNordLocator::onSelectServicePoint', {
             data: {
-                service_point_id: sPointId,
-                service_point_name: sPointName,
-                service_point_address: sPointAddress
+                service_point_id: obRadio.dataset.pointId || '',
+                service_point_name: obRadio.dataset.pointName || '',
+                service_point_address: obRadio.dataset.pointAddress || ''
             }
         });
     }

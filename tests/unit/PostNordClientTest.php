@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
 use Logingrupa\PostNordShippingShopaholic\Tests\PostNordTestCase;
 
 uses(PostNordTestCase::class);
 
-it('parses service points from API response', function (): void {
+it('parses service points from API response using the official V5 endpoint', function (): void {
     Http::fake([
-        'api2.postnord.com/*' => Http::response([
+        'api2.postnord.com/rest/businesslocation/v5/servicepoints/nearest/byaddress*' => Http::response([
             'servicePointInformationResponse' => [
                 'servicePoints' => [
                     [
@@ -66,6 +67,39 @@ it('parses service points from API response', function (): void {
     expect($arResult[1]['service_point_id'])->toBe('789012');
     expect($arResult[1]['distance_in_meters'])->toBe(3400);
     expect($arResult[1]['name'])->toBe('Rema 1000 Kambo');
+
+    Http::assertSent(static fn (Request $obRequest): bool => str_starts_with(
+        $obRequest->url(),
+        'https://api2.postnord.com/rest/businesslocation/v5/servicepoints/nearest/byaddress'
+    ));
+});
+
+it('uses sandbox host when sandbox mode is enabled for Nordic V5', function (): void {
+    Http::fake([
+        'atapi2.postnord.com/rest/businesslocation/v5/servicepoints/nearest/byaddress*' => Http::response([
+            'servicePointInformationResponse' => [
+                'servicePoints' => [
+                    [
+                        'servicePointId'  => '555',
+                        'name'            => 'Sandbox Point',
+                        'visitingAddress' => [
+                            'streetName'   => 'Testgata',
+                            'streetNumber' => '1',
+                            'postalCode'   => '0150',
+                            'city'         => 'OSLO',
+                            'countryCode'  => 'NO',
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $obClient = new PostNordClient('sandbox-key', 'NO', true);
+    $arResult = $obClient->findNearestByAddress('0150');
+
+    expect($arResult)->toHaveCount(1);
+    expect($arResult[0]['service_point_id'])->toBe('555');
 });
 
 it('returns empty array on API error', function (): void {

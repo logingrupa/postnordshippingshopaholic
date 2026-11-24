@@ -12,29 +12,39 @@ use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
  * Class PostNordClient
  * @package Logingrupa\PostNordShippingShopaholic\Classes\Api
  *
- * HTTP client for the PostNord Service Points V5 API.
- * Responsible only for API communication and response parsing.
- * Configuration (API key, country code) is read from the ShippingType property
- * column, not from a separate settings model.
+ * HTTP client for PostNord pickup point lookup.
+ * Supports both:
+ *  - PostNord Nordic Service Points V5 API (developer.postnord.com — API key)
+ *  - PostNord Norway B2C Products API (developer.postnord.no — OAuth2 Client Credentials)
+ *
+ * Configuration is read from the ShippingType property column.
  */
 class PostNordClient
 {
-    private const API_BASE_URL = 'https://api2.postnord.com/rest/businesslocation/v5/servicepoint/findNearestByAddress';
+    public const MODE_NORDIC = 'nordic';
+    public const MODE_NORWAY = 'norway';
+
+    private const NORDIC_PROD_URL = 'https://api2.postnord.com/rest/businesslocation/v5/servicepoints/nearest/byaddress';
+    private const NORDIC_SANDBOX_URL = 'https://atapi2.postnord.com/rest/businesslocation/v5/servicepoints/nearest/byaddress';
+    private const CONNECT_TIMEOUT_SECONDS = 3;
+    private const REQUEST_TIMEOUT_SECONDS = 5;
 
     /**
-     * @param string $sApiKey PostNord developer API key
+     * @param string $sApiKey PostNord Nordic developer API key
      * @param string $sCountryCode ISO 3166-1 alpha-2 country code
+     * @param bool $bIsSandbox Whether to target the sandbox host
+     * @param PostNordNorwayClient|null $obNorwayClient Delegate client when running in Norway OAuth2 mode
      */
     public function __construct(
         private readonly string $sApiKey,
         private readonly string $sCountryCode = 'NO',
+        private readonly bool $bIsSandbox = false,
+        private readonly ?PostNordNorwayClient $obNorwayClient = null,
     ) {
     }
 
     /**
      * Create a PostNordClient from a ShippingType item's property values.
-     * API key and country code are stored as property[postnord_api_key] and
-     * property[postnord_country_code] on the ShippingType form.
      */
     public static function fromShippingType(ShippingTypeItem $obShippingTypeItem): self
     {
@@ -42,13 +52,47 @@ class PostNordClient
         $mProperty = $obShippingTypeItem->property;
         $arProperty = is_array($mProperty) ? $mProperty : [];
 
-        $mApiKey = $arProperty['postnord_api_key'] ?? '';
-        $mCountryCode = $arProperty['postnord_country_code'] ?? 'NO';
+        return self::fromConfig($arProperty);
+    }
 
-        return new self(
-            self::mixedToString($mApiKey),
-            self::mixedToString($mCountryCode),
-        );
+    /**
+     * Create a PostNordClient from a ShippingType property array.
+     *
+     * @param array<mixed, mixed> $arProperty ShippingType property values
+     */
+    public static function fromConfig(array $arProperty): self
+    {
+        $sApiKey = trim(self::mixedToString($arProperty['postnord_api_key'] ?? ''));
+        $sCountryCode = trim(self::mixedToString($arProperty['postnord_country_code'] ?? 'NO'));
+        $sCountryCode = $sCountryCode !== '' ? $sCountryCode : 'NO';
+        $bIsSandbox = filter_var($arProperty['postnord_sandbox'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        $sClientId = trim(self::mixedToString($arProperty['postnord_client_id'] ?? ''));
+        $sApiMode = trim(self::mixedToString($arProperty['postnord_api_mode'] ?? ''));
+
+        $bUseNorway = $sApiMode === self::MODE_NORWAY
+            || ($sApiMode === '' && $sClientId !== '' && $sApiKey === '');
+
+        if ($bUseNorway) {
+            $sClientSecret = trim(self::mixedToString($arProperty['postnord_client_secret'] ?? ''));
+            $sCustomerId = trim(self::mixedToString($arProperty['postnord_customer_id'] ?? ''));
+            $sSenderPostalCode = trim(self::mixedToString($arProperty['postnord_sender_postal_code'] ?? '1528'));
+
+            return new self(
+                '',
+                'NO',
+                $bIsSandbox,
+                new PostNordNorwayClient(
+                    $sClientId,
+                    $sClientSecret,
+                    $sCustomerId,
+                    $sSenderPostalCode !== '' ? $sSenderPostalCode : '1528',
+                    $bIsSandbox,
+                ),
+            );
+        }
+
+        return new self($sApiKey, $sCountryCode, $bIsSandbox);
     }
 
     /**
@@ -59,25 +103,26 @@ class PostNordClient
      */
     public function testConnection(): array
     {
+        if ($this->obNorwayClient !== null) {
+            return $this->obNorwayClient->testConnection();
+        }
+
         if ($this->sApiKey === '') {
             return ['success' => false, 'message' => 'API key is empty.'];
         }
 
-        $arTestPostalCodes = [
-            'NO' => '0001',
-            'LV' => '1001',
-            'LT' => '01001',
-        ];
-
-        $sTestPostalCode = $arTestPostalCodes[$this->sCountryCode] ?? '0001';
+        $sTestPostalCode = $this->resolveTestPostalCode();
 
         try {
-            $obResponse = Http::get(self::API_BASE_URL, [
-                'apikey'                => $this->sApiKey,
-                'countryCode'           => $this->sCountryCode,
-                'postalCode'            => $sTestPostalCode,
-                'numberOfServicePoints' => 1,
-            ]);
+            $obResponse = Http::connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+                ->get($this->getNordicApiUrl(), [
+                    'returnType'            => 'json',
+                    'apikey'                => $this->sApiKey,
+                    'countryCode'           => $this->sCountryCode,
+                    'postalCode'            => $sTestPostalCode,
+                    'numberOfServicePoints' => 1,
+                ]);
 
             if ($obResponse->status() === 401 || $obResponse->status() === 403) {
                 return [
@@ -100,7 +145,6 @@ class PostNordClient
             }
 
             $mServicePoints = data_get($arData, 'servicePointInformationResponse.servicePoints');
-
             $iCount = is_array($mServicePoints) ? count($mServicePoints) : 0;
 
             return [
@@ -117,7 +161,7 @@ class PostNordClient
     }
 
     /**
-     * Find nearest service points by postal code
+     * Find nearest service points by postal code.
      *
      * @param string $sPostalCode Postal code to search near
      * @param int $iMaxResults Maximum number of results to return
@@ -125,17 +169,24 @@ class PostNordClient
      */
     public function findNearestByAddress(string $sPostalCode, int $iMaxResults = 10): array
     {
+        if ($this->obNorwayClient !== null) {
+            return $this->obNorwayClient->findNearestByAddress($sPostalCode, $iMaxResults);
+        }
+
         if ($sPostalCode === '' || $this->sApiKey === '') {
             return [];
         }
 
         try {
-            $obResponse = Http::get(self::API_BASE_URL, [
-                'apikey'                 => $this->sApiKey,
-                'countryCode'            => $this->sCountryCode,
-                'postalCode'             => $sPostalCode,
-                'numberOfServicePoints'  => $iMaxResults,
-            ]);
+            $obResponse = Http::connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+                ->get($this->getNordicApiUrl(), [
+                    'returnType'            => 'json',
+                    'apikey'                => $this->sApiKey,
+                    'countryCode'           => $this->sCountryCode,
+                    'postalCode'            => $sPostalCode,
+                    'numberOfServicePoints' => $iMaxResults,
+                ]);
 
             if (!$obResponse->successful()) {
                 Log::warning('PostNord API returned non-success status', [
@@ -164,7 +215,32 @@ class PostNordClient
     }
 
     /**
-     * Safely convert mixed value to string
+     * Return the Nordic Service Points V5 endpoint URL for the active environment.
+     */
+    private function getNordicApiUrl(): string
+    {
+        return $this->bIsSandbox ? self::NORDIC_SANDBOX_URL : self::NORDIC_PROD_URL;
+    }
+
+    /**
+     * Resolve a known test postal code for the configured country.
+     */
+    private function resolveTestPostalCode(): string
+    {
+        $arTestPostalCodes = [
+            'NO' => '0001',
+            'SE' => '11122',
+            'DK' => '1000',
+            'FI' => '00100',
+            'LV' => '1001',
+            'LT' => '01001',
+        ];
+
+        return $arTestPostalCodes[$this->sCountryCode] ?? '0001';
+    }
+
+    /**
+     * Safely convert mixed value to string.
      */
     private static function mixedToString(mixed $mValue): string
     {
@@ -180,7 +256,7 @@ class PostNordClient
     }
 
     /**
-     * Parse service points from the PostNord V5 API response
+     * Parse service points from the PostNord V5 API response.
      *
      * @param array<mixed, mixed> $arResponseData Raw API response
      * @return array<int, array<string, mixed>> Parsed service point list
@@ -210,7 +286,7 @@ class PostNordClient
     }
 
     /**
-     * Parse a single service point from the API response
+     * Parse a single service point from the API response.
      *
      * @param array<mixed, mixed> $arPointData Single service point data
      * @return array<string, mixed> Parsed service point
@@ -226,13 +302,13 @@ class PostNordClient
         $mEasting = data_get($arFirstCoordinate, 'easting');
 
         return [
-            'service_point_id' => self::mixedToString(data_get($arPointData, 'servicePointId', '')),
-            'name'             => self::mixedToString(data_get($arPointData, 'name', '')),
-            'street_name'      => self::mixedToString(data_get($arAddress, 'streetName', '')),
-            'street_number'    => self::mixedToString(data_get($arAddress, 'streetNumber', '')),
-            'postal_code'      => self::mixedToString(data_get($arAddress, 'postalCode', '')),
-            'city'             => self::mixedToString(data_get($arAddress, 'city', '')),
-            'country_code'     => self::mixedToString(data_get($arAddress, 'countryCode', '')),
+            'service_point_id'   => self::mixedToString(data_get($arPointData, 'servicePointId', '')),
+            'name'               => self::mixedToString(data_get($arPointData, 'name', '')),
+            'street_name'        => self::mixedToString(data_get($arAddress, 'streetName', '')),
+            'street_number'      => self::mixedToString(data_get($arAddress, 'streetNumber', '')),
+            'postal_code'        => self::mixedToString(data_get($arAddress, 'postalCode', '')),
+            'city'               => self::mixedToString(data_get($arAddress, 'city', '')),
+            'country_code'       => self::mixedToString(data_get($arAddress, 'countryCode', '')),
             'northing'           => is_numeric($mNorthing) ? (float) $mNorthing : null,
             'easting'            => is_numeric($mEasting) ? (float) $mEasting : null,
             'distance_in_meters' => $this->extractDistanceInMeters($arPointData),
@@ -240,7 +316,7 @@ class PostNordClient
     }
 
     /**
-     * Extract route distance in meters from a service point
+     * Extract route distance in meters from a service point.
      *
      * @param array<mixed, mixed> $arPointData Service point data
      * @return int|null Distance in meters or null if unavailable
@@ -257,7 +333,7 @@ class PostNordClient
     }
 
     /**
-     * Extract the first coordinate from a service point's coordinates array
+     * Extract the first coordinate from a service point's coordinates array.
      *
      * @param array<mixed, mixed> $arPointData Service point data
      * @return array<mixed, mixed> First coordinate or empty array

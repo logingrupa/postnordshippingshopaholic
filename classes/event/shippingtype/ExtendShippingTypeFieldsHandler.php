@@ -18,15 +18,13 @@ use Lovata\OrdersShopaholic\Models\ShippingType;
  * Always injects PostNord-specific fields into the ShippingType backend form,
  * each with a client-side trigger that shows the field only when the api_class
  * dropdown is set to PostNordShippingProcessor.
- *
- * This enables dynamic tab appearance without a page reload: the fields exist in
- * the DOM at all times, and the OctoberCMS trigger mechanism shows/hides them
- * based on the current api_class dropdown value.
  */
 class ExtendShippingTypeFieldsHandler
 {
+    private const SENSITIVE_PLACEHOLDER = '__hidden__';
+
     /**
-     * Register event listeners
+     * Register event listeners.
      *
      * @param \Illuminate\Events\Dispatcher $obDispatcher
      */
@@ -45,32 +43,23 @@ class ExtendShippingTypeFieldsHandler
      * Extend the ShippingTypes backend controller with the PostNord test
      * connection AJAX handler.
      *
-     * The handler reads API key and country code from the unsaved form POST
-     * data so the admin can verify credentials before saving.
+     * Reads credentials from unsaved form POST data so the admin can verify
+     * Norway OAuth2 or Nordic API key credentials before saving. Unmodified
+     * `type: sensitive` fields submit `__hidden__`, which is resolved from the
+     * saved ShippingType record.
      */
     protected function extendShippingTypesController(): void
     {
         ShippingTypes::extend(function (ShippingTypes $obController): void {
             $obController->addDynamicMethod(
                 'onTestPostNordConnection',
-                function (): void {
-                    $arProperty  = post('ShippingType[property]', []);
-                    $arProperty  = is_array($arProperty) ? $arProperty : [];
-                    $mApiKey     = $arProperty['postnord_api_key'] ?? '';
-                    $mCountryCode = $arProperty['postnord_country_code'] ?? 'NO';
+                function (mixed $mRecordId = null): void {
+                    $arProperty = post('ShippingType[property]', []);
+                    $arProperty = is_array($arProperty) ? $arProperty : [];
+                    $arProperty = $this->resolveSensitivePlaceholders($arProperty, $mRecordId);
 
-                    $sApiKey     = is_string($mApiKey) ? trim($mApiKey) : '';
-                    $sCountryCode = is_string($mCountryCode) ? trim($mCountryCode) : 'NO';
-
-                    if ($sApiKey === '') {
-                        Flash::error(
-                            trans('logingrupa.postnordshippingshopaholic::lang.field.test_connection_no_key')
-                        );
-                        return;
-                    }
-
-                    $obClient  = new PostNordClient($sApiKey, $sCountryCode);
-                    $arResult  = $obClient->testConnection();
+                    $obClient = PostNordClient::fromConfig($arProperty);
+                    $arResult = $obClient->testConnection();
 
                     if ($arResult['success']) {
                         Flash::success($arResult['message']);
@@ -84,9 +73,6 @@ class ExtendShippingTypeFieldsHandler
 
     /**
      * Inject PostNord fields into the ShippingType form.
-     * Fields are always added regardless of current api_class value.
-     * Each field carries a trigger so it is only visible when
-     * api_class equals PostNordShippingProcessor::class.
      *
      * @param \Backend\Widgets\Form $obWidget
      */
@@ -109,89 +95,59 @@ class ExtendShippingTypeFieldsHandler
 
     /**
      * Return field definitions for the PostNord "Pickup Points" tab.
-     * Every field has a trigger that hides it unless api_class is set to
-     * PostNordShippingProcessor — enabling instant client-side show/hide
-     * when the api_class dropdown changes.
      *
      * @return array<string, array<string, mixed>>
      */
     protected function getPostNordFields(): array
     {
-        $sTriggerCondition = 'value[' . PostNordShippingProcessor::class . ']';
+        $arFields = PostNordShippingProcessor::getFields();
 
-        return [
-            'postnord_info' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.tab_section_label',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.tab_section_comment',
-                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
-                'span'    => 'full',
-                'type'    => 'section',
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => [
-                    'action'    => 'show',
-                    'field'     => 'api_class',
-                    'condition' => $sTriggerCondition,
-                ],
-            ],
-            'property[postnord_api_key]' => [
-                'label'    => 'logingrupa.postnordshippingshopaholic::lang.field.api_key',
-                'comment'  => 'logingrupa.postnordshippingshopaholic::lang.field.api_key_comment',
-                'tab'      => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
-                'span'     => 'full',
-                'type'     => 'text',
-                'required' => true,
-                'context'  => ['create', 'update'],
-                'trigger'  => [
-                    'action'    => 'show',
-                    'field'     => 'api_class',
-                    'condition' => $sTriggerCondition,
-                ],
-            ],
-            'property[postnord_country_code]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.country_code',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.country_code_comment',
-                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
-                'span'    => 'left',
-                'type'    => 'dropdown',
-                'default' => 'NO',
-                'options' => [
-                    'NO' => 'Norway',
-                    'LV' => 'Latvia',
-                    'LT' => 'Lithuania',
-                ],
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => [
-                    'action'    => 'show',
-                    'field'     => 'api_class',
-                    'condition' => $sTriggerCondition,
-                ],
-            ],
-            'property[postnord_max_results]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.max_results',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.max_results_comment',
-                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
-                'span'    => 'right',
-                'type'    => 'number',
-                'default' => 10,
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => [
-                    'action'    => 'show',
-                    'field'     => 'api_class',
-                    'condition' => $sTriggerCondition,
-                ],
-            ],
-            'postnord_test_connection' => [
-                'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
-                'type'    => 'partial',
-                'path'    => '$/logingrupa/postnordshippingshopaholic/partials/_test_connection',
-                'span'    => 'full',
-                'context' => ['create', 'update'],
-                'trigger' => [
-                    'action'    => 'show',
-                    'field'     => 'api_class',
-                    'condition' => $sTriggerCondition,
-                ],
+        $arFields['postnord_test_connection'] = [
+            'tab'     => 'logingrupa.postnordshippingshopaholic::lang.field.tab_pickup',
+            'type'    => 'partial',
+            'path'    => '$/logingrupa/postnordshippingshopaholic/partials/_test_connection',
+            'span'    => 'full',
+            'context' => ['create', 'update'],
+            'trigger' => [
+                'action'    => 'show',
+                'field'     => 'api_class',
+                'condition' => 'value[' . PostNordShippingProcessor::class . ']',
             ],
         ];
+
+        return $arFields;
+    }
+
+    /**
+     * Replace untouched `__hidden__` sensitive widget placeholders with values
+     * from the existing ShippingType record.
+     *
+     * @param array<mixed, mixed> $arProperty
+     * @return array<mixed, mixed>
+     */
+    private function resolveSensitivePlaceholders(array $arProperty, mixed $mRecordId): array
+    {
+        if (!is_numeric($mRecordId)) {
+            return $arProperty;
+        }
+
+        $obRecord = ShippingType::find((int) $mRecordId);
+        if (!$obRecord instanceof ShippingType) {
+            return $arProperty;
+        }
+
+        /** @var mixed $mSavedProperty */
+        $mSavedProperty = $obRecord->property;
+        if (!is_array($mSavedProperty)) {
+            return $arProperty;
+        }
+
+        foreach (['postnord_client_secret', 'postnord_api_key'] as $sSecretKey) {
+            if (($arProperty[$sSecretKey] ?? null) === self::SENSITIVE_PLACEHOLDER) {
+                $arProperty[$sSecretKey] = $mSavedProperty[$sSecretKey] ?? '';
+            }
+        }
+
+        return $arProperty;
     }
 }

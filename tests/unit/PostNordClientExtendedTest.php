@@ -119,7 +119,7 @@ it('falls back to 0001 for unknown country code', function (): void {
         ], 200),
     ]);
 
-    $obClient = new PostNordClient('valid-key', 'SE');
+    $obClient = new PostNordClient('valid-key', 'DE');
     $arResult = $obClient->testConnection();
 
     expect($arResult['success'])->toBeTrue();

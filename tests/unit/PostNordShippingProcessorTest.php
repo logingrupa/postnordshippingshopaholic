@@ -16,6 +16,12 @@ it('returns fields array with expected keys from getFields', function (): void {
 
     expect($arFields)->toBeArray();
     expect($arFields)->toHaveKey('postnord_info');
+    expect($arFields)->toHaveKey('property[postnord_api_mode]');
+    expect($arFields)->toHaveKey('property[postnord_sandbox]');
+    expect($arFields)->toHaveKey('property[postnord_client_id]');
+    expect($arFields)->toHaveKey('property[postnord_client_secret]');
+    expect($arFields)->toHaveKey('property[postnord_customer_id]');
+    expect($arFields)->toHaveKey('property[postnord_sender_postal_code]');
     expect($arFields)->toHaveKey('property[postnord_api_key]');
     expect($arFields)->toHaveKey('property[postnord_country_code]');
     expect($arFields)->toHaveKey('property[postnord_max_results]');
@@ -28,12 +34,15 @@ it('returns section type for postnord_info field', function (): void {
     expect($arFields['postnord_info']['span'])->toBe('full');
 });
 
-it('returns text type for api_key field with required flag', function (): void {
+it('returns sensitive type for api_key and client_secret fields', function (): void {
     $arFields = PostNordShippingProcessor::getFields();
 
     $arApiKeyField = $arFields['property[postnord_api_key]'];
-    expect($arApiKeyField['type'])->toBe('text');
-    expect($arApiKeyField['required'])->toBeTrue();
+    expect($arApiKeyField['type'])->toBe('sensitive');
+    expect($arApiKeyField['required'])->toBeFalse();
+
+    $arClientSecretField = $arFields['property[postnord_client_secret]'];
+    expect($arClientSecretField['type'])->toBe('sensitive');
 });
 
 it('returns dropdown type for country_code field with correct options', function (): void {
@@ -44,6 +53,9 @@ it('returns dropdown type for country_code field with correct options', function
     expect($arCountryField['default'])->toBe('NO');
     expect($arCountryField['options'])->toBe([
         'NO' => 'Norway',
+        'SE' => 'Sweden',
+        'DK' => 'Denmark',
+        'FI' => 'Finland',
         'LV' => 'Latvia',
         'LT' => 'Lithuania',
     ]);

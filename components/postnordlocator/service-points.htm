@@ -1,19 +1,26 @@
 {% if arServicePointList is not empty %}
     <div class="postnord-locator__results">
         {% for obPoint in arServicePointList %}
+            {% set sStreet = (obPoint.street_name ~ ' ' ~ obPoint.street_number)|trim %}
+            {% set sAddress = (sStreet ~ ', ' ~ obPoint.postal_code ~ ' ' ~ obPoint.city)|trim %}
             <label class="postnord-locator__point">
                 <input
                     type="radio"
                     name="postnord_service_point"
                     value="{{ obPoint.service_point_id }}"
+                    required
                     data-postnord-point
                     data-point-id="{{ obPoint.service_point_id }}"
                     data-point-name="{{ obPoint.name }}"
-                    data-point-address="{{ obPoint.street_name }} {{ obPoint.street_number }}, {{ obPoint.city }}"
+                    data-point-street="{{ sStreet }}"
+                    data-point-postal-code="{{ obPoint.postal_code }}"
+                    data-point-city="{{ obPoint.city }}"
+                    data-point-country="{{ obPoint.country_code }}"
+                    data-point-address="{{ sAddress }}"
                 />
-                <span class="postnord-locator__point-name">{{ obPoint.name }}</span>
-                <span class="postnord-locator__point-address">
-                    {{ obPoint.street_name }} {{ obPoint.street_number }}, {{ obPoint.postal_code }} {{ obPoint.city }}
+                <span class="postnord-locator__point-body">
+                    <span class="postnord-locator__point-name">{{ obPoint.name }}</span>
+                    <span class="postnord-locator__point-address">{{ sAddress }}</span>
                 </span>
                 {% if obPoint.distance_in_meters %}
                     <span class="postnord-locator__point-distance">
@@ -27,8 +34,12 @@
             </label>
         {% endfor %}
     </div>
+{% elseif bHasSearched %}
+    <p class="postnord-locator__empty">
+        {{ 'logingrupa.postnordshippingshopaholic::lang.component.no_points_found'|trans }}
+    </p>
 {% else %}
     <p class="postnord-locator__empty">
-        {{ 'logingrupa.postnordshippingshopaholic::lang.component.no_points'|_ }}
+        {{ 'logingrupa.postnordshippingshopaholic::lang.component.no_points'|trans }}
     </p>
 {% endif %}

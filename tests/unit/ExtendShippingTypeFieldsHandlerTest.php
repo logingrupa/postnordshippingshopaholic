@@ -28,6 +28,12 @@ it('returns correct PostNord field definitions from getPostNordFields', function
     $arFields = $obMethod->invoke($obHandler);
 
     expect($arFields)->toHaveKey('postnord_info');
+    expect($arFields)->toHaveKey('property[postnord_api_mode]');
+    expect($arFields)->toHaveKey('property[postnord_sandbox]');
+    expect($arFields)->toHaveKey('property[postnord_client_id]');
+    expect($arFields)->toHaveKey('property[postnord_client_secret]');
+    expect($arFields)->toHaveKey('property[postnord_customer_id]');
+    expect($arFields)->toHaveKey('property[postnord_sender_postal_code]');
     expect($arFields)->toHaveKey('property[postnord_api_key]');
     expect($arFields)->toHaveKey('property[postnord_country_code]');
     expect($arFields)->toHaveKey('property[postnord_max_results]');
