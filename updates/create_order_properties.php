@@ -11,24 +11,30 @@ class CreateOrderProperties extends Migration
 {
     private const ORDER_PROPERTIES_TABLE = 'lovata_orders_shopaholic_addition_properties';
 
-    /** @var list<array{code: string, name: string, type: string, sort_order: int}> */
+    /** @var list<array{active: bool, code: string, name: string, type: string, settings: string, sort_order: int}> */
     private array $arPropertyList = [
         [
+            'active'     => true,
             'code'       => 'postnord_service_point_id',
             'name'       => 'PostNord Service Point ID',
-            'type'       => 'text',
+            'type'       => 'input',
+            'settings'   => '{"tab":"lovata.ordersshopaholic::lang.tab.shipping_address"}',
             'sort_order' => 100,
         ],
         [
+            'active'     => true,
             'code'       => 'postnord_service_point_name',
             'name'       => 'PostNord Service Point Name',
-            'type'       => 'text',
+            'type'       => 'input',
+            'settings'   => '{"tab":"lovata.ordersshopaholic::lang.tab.shipping_address"}',
             'sort_order' => 101,
         ],
         [
+            'active'     => true,
             'code'       => 'postnord_service_point_address',
             'name'       => 'PostNord Service Point Address',
-            'type'       => 'text',
+            'type'       => 'input',
+            'settings'   => '{"tab":"lovata.ordersshopaholic::lang.tab.shipping_address"}',
             'sort_order' => 102,
         ],
     ];

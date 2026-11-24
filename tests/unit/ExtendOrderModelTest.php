@@ -175,3 +175,42 @@ it('writes session fallback onto a PostNord order when form did not send pickup 
     ]);
     expect(Session::get('postnord_service_point_id'))->toBeNull();
 });
+
+it('exposes PostNord order properties as visible text fields on the Shipping address tab', function (): void {
+    if (!\Illuminate\Support\Facades\Schema::hasTable('lovata_orders_shopaholic_addition_properties')) {
+        \Illuminate\Support\Facades\Schema::create('lovata_orders_shopaholic_addition_properties', function ($obTable): void {
+            $obTable->increments('id');
+            $obTable->boolean('active')->default(true);
+            $obTable->string('name');
+            $obTable->string('code')->unique();
+            $obTable->string('slug')->nullable();
+            $obTable->text('description')->nullable();
+            $obTable->string('type')->nullable();
+            $obTable->text('settings')->nullable();
+            $obTable->integer('sort_order')->default(0);
+            $obTable->timestamps();
+        });
+    }
+
+    require_once dirname(__DIR__, 2) . '/updates/create_order_properties.php';
+    require_once dirname(__DIR__, 2) . '/updates/fix_order_properties_widget_type.php';
+
+    (new \Logingrupa\PostNordShippingShopaholic\Updates\CreateOrderProperties())->up();
+    (new \Logingrupa\PostNordShippingShopaholic\Updates\FixOrderPropertiesWidgetType())->up();
+
+    $arCodeList = [
+        'postnord_service_point_id',
+        'postnord_service_point_name',
+        'postnord_service_point_address',
+    ];
+
+    foreach ($arCodeList as $sCode) {
+        $obProperty = \Lovata\OrdersShopaholic\Models\OrderProperty::where('code', $sCode)->first();
+        expect($obProperty)->not->toBeNull("Missing OrderProperty {$sCode}");
+
+        $arWidget = $obProperty?->getWidgetData();
+        expect($arWidget)->toBeArray();
+        expect($arWidget['type'] ?? null)->toBe('text');
+        expect($arWidget['tab'] ?? null)->toBe('lovata.ordersshopaholic::lang.tab.shipping_address');
+    }
+});

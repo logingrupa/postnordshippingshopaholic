@@ -11,3 +11,6 @@
     - "Add PostNord Norway OAuth2 (developer.postnord.no) support alongside fixed Nordic Service Points v5 endpoint, scoped TTL cache, HTTP timeouts, sensitive credential fields, and safe order-property handling."
 "1.0.4":
     - "Switch PostNord API Mode to radio buttons (fixing Select2 label click native select popup) and dynamically hide Nordic-only fields in Norway mode (and Norway-only fields in Nordic mode)."
+"1.0.5":
+    - "Fix PostNord order property widget type ('input' instead of 'text') and assign them to the Shipping address tab so PostNord Service Point ID, Name, and Address render on backend Orders."
+    - fix_order_properties_widget_type.php
