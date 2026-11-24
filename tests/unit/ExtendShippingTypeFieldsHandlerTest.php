@@ -95,3 +95,45 @@ it('has extendShippingTypesController method', function (): void {
 
     expect($obMethod->isProtected())->toBeTrue();
 });
+
+it('hides Nordic fields in Norway mode and Norway fields in Nordic mode', function (): void {
+    $obReflection = new ReflectionClass(ExtendShippingTypeFieldsHandler::class);
+    $obMethod = $obReflection->getMethod('filterModeFields');
+    $obMethod->setAccessible(true);
+
+    $fnMakeFields = static function (string $sMode): \October\Rain\Element\ElementHolder {
+        $arNames = [
+            'property[postnord_api_mode]',
+            'property[postnord_client_id]',
+            'property[postnord_client_secret]',
+            'property[postnord_customer_id]',
+            'property[postnord_sender_postal_code]',
+            'property[postnord_api_key]',
+            'property[postnord_country_code]',
+        ];
+        $arMap = [];
+        foreach ($arNames as $sName) {
+            $obField = new \Backend\Classes\FormField($sName, $sName);
+            $arMap[$sName] = $obField;
+        }
+        $arMap['property[postnord_api_mode]']->value = $sMode;
+
+        return new \October\Rain\Element\ElementHolder($arMap);
+    };
+
+    $obHandler = new ExtendShippingTypeFieldsHandler();
+
+    $obNorwayFields = $fnMakeFields('norway');
+    $obMethod->invoke($obHandler, $obNorwayFields);
+    expect($obNorwayFields->get('property[postnord_api_key]')->hidden)->toBeTrue();
+    expect($obNorwayFields->get('property[postnord_country_code]')->hidden)->toBeTrue();
+    expect($obNorwayFields->get('property[postnord_client_id]')->hidden)->toBeFalse();
+    expect($obNorwayFields->get('property[postnord_client_secret]')->hidden)->toBeFalse();
+
+    $obNordicFields = $fnMakeFields('nordic');
+    $obMethod->invoke($obHandler, $obNordicFields);
+    expect($obNordicFields->get('property[postnord_api_key]')->hidden)->toBeFalse();
+    expect($obNordicFields->get('property[postnord_country_code]')->hidden)->toBeFalse();
+    expect($obNordicFields->get('property[postnord_client_id]')->hidden)->toBeTrue();
+    expect($obNordicFields->get('property[postnord_client_secret]')->hidden)->toBeTrue();
+});

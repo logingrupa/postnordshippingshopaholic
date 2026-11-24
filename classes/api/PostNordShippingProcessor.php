@@ -98,7 +98,7 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
                 'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.api_mode_comment',
                 'tab'     => self::TAB_PICKUP,
                 'span'    => 'left',
-                'type'    => 'dropdown',
+                'type'    => 'radio',
                 'default' => PostNordClient::MODE_NORWAY,
                 'options' => [
                     PostNordClient::MODE_NORWAY => 'PostNord Norway (developer.postnord.no — OAuth2)',
@@ -128,43 +128,49 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
      */
     private static function getNorwayFields(array $arTrigger): array
     {
+        $arDependsOn = ['property[postnord_api_mode]'];
+
         return [
             'property[postnord_client_id]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.client_id',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.client_id_comment',
-                'tab'     => self::TAB_PICKUP,
-                'span'    => 'left',
-                'type'    => 'text',
-                'context' => ['create', 'update'],
-                'trigger' => $arTrigger,
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.client_id',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.client_id_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'left',
+                'type'      => 'text',
+                'context'   => ['create', 'update'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
             'property[postnord_client_secret]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.client_secret',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.client_secret_comment',
-                'tab'     => self::TAB_PICKUP,
-                'span'    => 'right',
-                'type'    => 'sensitive',
-                'context' => ['create', 'update'],
-                'trigger' => $arTrigger,
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.client_secret',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.client_secret_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'right',
+                'type'      => 'sensitive',
+                'context'   => ['create', 'update'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
             'property[postnord_customer_id]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.customer_id',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.customer_id_comment',
-                'tab'     => self::TAB_PICKUP,
-                'span'    => 'left',
-                'type'    => 'text',
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => $arTrigger,
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.customer_id',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.customer_id_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'left',
+                'type'      => 'text',
+                'context'   => ['create', 'update', 'preview'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
             'property[postnord_sender_postal_code]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.sender_postal_code',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.sender_postal_code_comment',
-                'tab'     => self::TAB_PICKUP,
-                'span'    => 'right',
-                'type'    => 'text',
-                'default' => '1528',
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => $arTrigger,
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.sender_postal_code',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.sender_postal_code_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'right',
+                'type'      => 'text',
+                'default'   => '1528',
+                'context'   => ['create', 'update', 'preview'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
         ];
     }
@@ -177,25 +183,28 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
      */
     private static function getNordicFields(array $arTrigger): array
     {
+        $arDependsOn = ['property[postnord_api_mode]'];
+
         return [
             'property[postnord_api_key]' => [
-                'label'    => 'logingrupa.postnordshippingshopaholic::lang.field.api_key',
-                'comment'  => 'logingrupa.postnordshippingshopaholic::lang.field.api_key_comment',
-                'tab'      => self::TAB_PICKUP,
-                'span'     => 'full',
-                'type'     => 'sensitive',
-                'required' => false,
-                'context'  => ['create', 'update'],
-                'trigger'  => $arTrigger,
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.api_key',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.api_key_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'full',
+                'type'      => 'sensitive',
+                'required'  => false,
+                'context'   => ['create', 'update'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
             'property[postnord_country_code]' => [
-                'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.country_code',
-                'comment' => 'logingrupa.postnordshippingshopaholic::lang.field.country_code_comment',
-                'tab'     => self::TAB_PICKUP,
-                'span'    => 'left',
-                'type'    => 'dropdown',
-                'default' => 'NO',
-                'options' => [
+                'label'     => 'logingrupa.postnordshippingshopaholic::lang.field.country_code',
+                'comment'   => 'logingrupa.postnordshippingshopaholic::lang.field.country_code_comment',
+                'tab'       => self::TAB_PICKUP,
+                'span'      => 'left',
+                'type'      => 'dropdown',
+                'default'   => 'NO',
+                'options'   => [
                     'NO' => 'Norway',
                     'SE' => 'Sweden',
                     'DK' => 'Denmark',
@@ -203,8 +212,9 @@ class PostNordShippingProcessor implements ShippingPriceProcessorInterface
                     'LV' => 'Latvia',
                     'LT' => 'Lithuania',
                 ],
-                'context' => ['create', 'update', 'preview'],
-                'trigger' => $arTrigger,
+                'context'   => ['create', 'update', 'preview'],
+                'dependsOn' => $arDependsOn,
+                'trigger'   => $arTrigger,
             ],
             'property[postnord_max_results]' => [
                 'label'   => 'logingrupa.postnordshippingshopaholic::lang.field.max_results',

@@ -9,3 +9,5 @@
     - "Norwegian backend strings move from lang/no to lang/nb-no, so the locator settings and field labels render in Norwegian on nailscosmetics.no instead of English."
 "1.0.3":
     - "Add PostNord Norway OAuth2 (developer.postnord.no) support alongside fixed Nordic Service Points v5 endpoint, scoped TTL cache, HTTP timeouts, sensitive credential fields, and safe order-property handling."
+"1.0.4":
+    - "Switch PostNord API Mode to radio buttons (fixing Select2 label click native select popup) and dynamically hide Nordic-only fields in Norway mode (and Norway-only fields in Nordic mode)."
