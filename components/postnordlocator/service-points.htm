@@ -17,11 +17,16 @@
                     data-point-city="{{ obPoint.city }}"
                     data-point-country="{{ obPoint.country_code }}"
                     data-point-address="{{ sAddress }}"
+                    {% if obPoint.customer_price_formatted %}data-point-price="{{ obPoint.customer_price_formatted }}"{% endif %}
+                    {% if obPoint.product_code %}data-point-product-code="{{ obPoint.product_code }}"{% endif %}
                 />
                 <span class="postnord-locator__point-body">
                     <span class="postnord-locator__point-name">{{ obPoint.name }}</span>
                     <span class="postnord-locator__point-address">{{ sAddress }}</span>
                 </span>
+                {% if obPoint.customer_price_formatted %}
+                    <span class="postnord-locator__point-price">{{ obPoint.customer_price_formatted }}</span>
+                {% endif %}
                 {% if obPoint.distance_in_meters %}
                     <span class="postnord-locator__point-distance">
                         {% if obPoint.distance_in_meters >= 1000 %}

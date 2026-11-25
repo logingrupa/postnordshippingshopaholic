@@ -7,6 +7,7 @@ namespace Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordPriceCalculator;
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordShippingProcessor;
 use Logingrupa\PostNordShippingShopaholic\Models\ServicePoint;
 use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
@@ -17,10 +18,9 @@ use Lovata\Toolbox\Classes\Store\AbstractStoreWithParam;
  * Class ServicePointListStore
  * @package Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint
  *
- * Provides cached PostNord pickup point lookups keyed by shipping type,
- * API mode, sandbox flag, country code, limit, and searched postal code
- * with a bounded TTL. Keeps per-search distances in the cache payload so
- * neighboring searches do not overwrite each other's distances on shared rows.
+ * Provides cached PostNord delivery catalog & pickup point lookups keyed by
+ * shipping type, API mode, sandbox flag, country code, limit, searched postal
+ * code, parcel weight, and enabled products.
  */
 class ServicePointListStore extends AbstractStoreWithParam
 {
@@ -43,42 +43,87 @@ class ServicePointListStore extends AbstractStoreWithParam
     }
 
     /**
-     * Return distance-ordered service point entries for a searched postal code.
+     * Return both selectable delivery options (Norway mode) and distance-ordered
+     * pickup point entries for a searched postal code in a single cached lookup.
      *
-     * Cache keys are isolated by shipping type, mode, sandbox flag, country,
-     * max results, and postal code with a 6-hour TTL. Degraded DB fallback
-     * results (when the API fails) are never written to cache.
-     *
-     * @return list<array{id: int, distance_in_meters: int|null}>
+     * @param array{weight: int, length: int|null, width: int|null, height: int|null, cart_total_nok?: float|null, parcel_letter_max_price?: float|null, packaging?: string}|null $arParcel
+     * @return array{products: list<array{product_code: string, display_name: string, description: string, tip: string, price_net: float|null, price_currency: string, working_days: int|null, needs_pickup_point: bool}>, points: list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}>}
      */
-    public function getSearchResults(string $sPostalCode, ?int $iShippingTypeId = null): array
-    {
+    public function getDeliveryCatalog(
+        string $sPostalCode,
+        ?int $iShippingTypeId = null,
+        ?int $iWeightGrams = null,
+        ?array $arParcel = null,
+    ): array {
+        $arEmpty = ['products' => [], 'points' => []];
         $sCleanPostalCode = trim($sPostalCode);
         if ($sCleanPostalCode === '') {
-            return [];
+            return $arEmpty;
         }
 
         $obShippingTypeItem = $this->resolvePostNordShippingTypeItem($iShippingTypeId ?? $this->iShippingTypeId);
         if ($obShippingTypeItem === null) {
-            return [];
+            return $arEmpty;
         }
 
-        $arScope = ServicePointSearchScope::fromShippingType($obShippingTypeItem, $sCleanPostalCode);
+        $arScope = ServicePointSearchScope::fromShippingType($obShippingTypeItem, $sCleanPostalCode, $iWeightGrams, $arParcel);
         $sCacheKey = ServicePointSearchScope::buildCacheKey($arScope);
 
         $mCached = Cache::get($sCacheKey);
         if (is_array($mCached)) {
-            return $this->normalizeCachedEntries($mCached);
+            return ServicePointCacheNormalizer::normalizeCachedCatalog($mCached);
         }
 
-        $arApiEntries = $this->fetchAndPersistFromApi($obShippingTypeItem, $sCleanPostalCode, $arScope);
-        if ($arApiEntries !== []) {
-            Cache::put($sCacheKey, $arApiEntries, self::SEARCH_CACHE_TTL_SECONDS);
+        $arApiCatalog = $this->fetchAndPersistCatalogFromApi($obShippingTypeItem, $sCleanPostalCode, $arScope, $arParcel);
+        if ($arApiCatalog['points'] !== [] || $arApiCatalog['products'] !== []) {
+            Cache::put($sCacheKey, $arApiCatalog, self::SEARCH_CACHE_TTL_SECONDS);
 
-            return $arApiEntries;
+            return $arApiCatalog;
         }
 
-        return $this->queryFallbackEntries($sCleanPostalCode, $arScope['country_code']);
+        return [
+            'products' => [],
+            'points'   => $this->queryFallbackEntries($sCleanPostalCode, $arScope['country_code']),
+        ];
+    }
+
+    /**
+     * Return distance-ordered service point entries for a searched postal code.
+     *
+     * @return list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}>
+     */
+    public function getSearchResults(
+        string $sPostalCode,
+        ?int $iShippingTypeId = null,
+        ?int $iWeightGrams = null,
+    ): array {
+        return $this->getDeliveryCatalog($sPostalCode, $iShippingTypeId, $iWeightGrams)['points'];
+    }
+
+    /**
+     * Resolve the active PostNord ShippingType item.
+     */
+    public function resolvePostNordShippingTypeItem(?int $iShippingTypeId): ?ShippingTypeItem
+    {
+        $obShippingType = null;
+
+        if ($iShippingTypeId !== null && $iShippingTypeId > 0) {
+            $obShippingType = ShippingType::where('id', $iShippingTypeId)
+                ->where('api_class', PostNordShippingProcessor::class)
+                ->first();
+        }
+
+        if (!$obShippingType instanceof ShippingType) {
+            $obShippingType = ShippingType::where('api_class', PostNordShippingProcessor::class)->first();
+        }
+
+        if (!$obShippingType instanceof ShippingType) {
+            return null;
+        }
+
+        $obItem = ShippingTypeItem::make($obShippingType->id);
+
+        return $obItem->isEmpty() ? null : $obItem;
     }
 
     /**
@@ -103,38 +148,50 @@ class ServicePointListStore extends AbstractStoreWithParam
     }
 
     /**
-     * Fetch nearest service points from PostNord API, upsert valid rows, and return ordered entries.
+     * Fetch delivery products and nearest pickup points from PostNord API and persist points.
      *
-     * @param array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string} $arScope
-     * @return list<array{id: int, distance_in_meters: int|null}>
+     * @param array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string, weight_grams: int, product_filter: string, parcel_sig: string} $arScope
+     * @param array{weight: int, length: int|null, width: int|null, height: int|null, cart_total_nok?: float|null, parcel_letter_max_price?: float|null, packaging?: string}|null $arParcel
+     * @return array{products: list<array{product_code: string, display_name: string, description: string, tip: string, price_net: float|null, price_currency: string, working_days: int|null, needs_pickup_point: bool}>, points: list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}>}
      */
-    private function fetchAndPersistFromApi(
+    private function fetchAndPersistCatalogFromApi(
         ShippingTypeItem $obShippingTypeItem,
         string $sPostalCode,
         array $arScope,
+        ?array $arParcel = null,
     ): array {
-        $arServicePointList = PostNordClient::fromShippingType($obShippingTypeItem)
-            ->findNearestByAddress($sPostalCode, $arScope['max_results']);
+        /** @var mixed $mProperty */
+        $mProperty = $obShippingTypeItem->property;
+        $arProperty = is_array($mProperty) ? $mProperty : [];
 
-        /** @var list<array{id: int, distance_in_meters: int|null}> $arEntries */
+        $iWeightArg = $arScope['weight_grams'] > 0 ? $arScope['weight_grams'] : null;
+        $bIsNorway = $arScope['api_mode'] === PostNordClient::MODE_NORWAY;
+        $arApiProducts = $bIsNorway ? PostNordPriceCalculator::resolveProductFilterList($arProperty) : [];
+        $arAllowedCodes = $bIsNorway ? PostNordPriceCalculator::resolveEnabledProductCodes($arProperty) : [];
+
+        $arCatalog = PostNordClient::fromShippingType($obShippingTypeItem)
+            ->findDeliveryCatalog($sPostalCode, $arScope['max_results'], $iWeightArg, $arApiProducts, $arAllowedCodes, $bIsNorway ? $arParcel : null);
+
+        /** @var list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}> $arEntries */
         $arEntries = [];
-
-        foreach ($arServicePointList as $arServicePointData) {
+        foreach ($arCatalog['points'] as $arServicePointData) {
             $arEntry = $this->persistServicePoint($arServicePointData, $arScope['country_code']);
             if ($arEntry !== null) {
                 $arEntries[] = $arEntry;
             }
         }
 
-        return $arEntries;
+        return [
+            'products' => $arCatalog['products'],
+            'points'   => $arEntries,
+        ];
     }
 
     /**
-     * Validate and upsert a single service point, skipping malformed entries
-     * so one invalid point cannot abort the entire lookup.
+     * Validate and upsert a single service point, skipping malformed entries.
      *
      * @param array<string, mixed> $arServicePointData
-     * @return array{id: int, distance_in_meters: int|null}|null
+     * @return array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}|null
      */
     private function persistServicePoint(array $arServicePointData, string $sFallbackCountry): ?array
     {
@@ -142,9 +199,6 @@ class ServicePointListStore extends AbstractStoreWithParam
         if ($arNormalized === null) {
             return null;
         }
-
-        $mDistance = $arServicePointData['distance_in_meters'] ?? null;
-        $iDistance = is_numeric($mDistance) ? (int) $mDistance : null;
 
         try {
             $obModel = ServicePoint::updateOrCreate(
@@ -164,20 +218,16 @@ class ServicePointListStore extends AbstractStoreWithParam
         }
 
         $mModelId = $obModel->getKey();
-        if (!is_numeric($mModelId)) {
-            return null;
-        }
 
-        return [
-            'id'                 => (int) $mModelId,
-            'distance_in_meters' => $iDistance,
-        ];
+        return is_numeric($mModelId)
+            ? ServicePointCacheNormalizer::buildPointCacheEntry((int) $mModelId, $arServicePointData)
+            : null;
     }
 
     /**
      * Country-scoped DB fallback when the upstream API is unavailable.
      *
-     * @return list<array{id: int, distance_in_meters: int|null}>
+     * @return list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}>
      */
     private function queryFallbackEntries(string $sPostalCode, string $sCountryCode): array
     {
@@ -186,69 +236,14 @@ class ServicePointListStore extends AbstractStoreWithParam
             ->pluck('id')
             ->all();
 
-        /** @var list<array{id: int, distance_in_meters: int|null}> $arEntries */
+        /** @var list<array{id: int, distance_in_meters: int|null, price_net: float|null, price_currency: string, product_code: string}> $arEntries */
         $arEntries = [];
         foreach ($arRawIdList as $mId) {
             if (is_numeric($mId)) {
-                $arEntries[] = [
-                    'id'                 => (int) $mId,
-                    'distance_in_meters' => null,
-                ];
+                $arEntries[] = ServicePointCacheNormalizer::buildPointCacheEntry((int) $mId, []);
             }
         }
 
         return $arEntries;
-    }
-
-    /**
-     * Normalize cached entry arrays defensively.
-     *
-     * @param array<mixed, mixed> $arCached
-     * @return list<array{id: int, distance_in_meters: int|null}>
-     */
-    private function normalizeCachedEntries(array $arCached): array
-    {
-        /** @var list<array{id: int, distance_in_meters: int|null}> $arEntries */
-        $arEntries = [];
-
-        foreach ($arCached as $mEntry) {
-            if (!is_array($mEntry) || !is_numeric($mEntry['id'] ?? null)) {
-                continue;
-            }
-
-            $mDistance = $mEntry['distance_in_meters'] ?? null;
-            $arEntries[] = [
-                'id'                 => (int) $mEntry['id'],
-                'distance_in_meters' => is_numeric($mDistance) ? (int) $mDistance : null,
-            ];
-        }
-
-        return $arEntries;
-    }
-
-    /**
-     * Resolve the active PostNord ShippingType item.
-     */
-    private function resolvePostNordShippingTypeItem(?int $iShippingTypeId): ?ShippingTypeItem
-    {
-        $obShippingType = null;
-
-        if ($iShippingTypeId !== null && $iShippingTypeId > 0) {
-            $obShippingType = ShippingType::where('id', $iShippingTypeId)
-                ->where('api_class', PostNordShippingProcessor::class)
-                ->first();
-        }
-
-        if (!$obShippingType instanceof ShippingType) {
-            $obShippingType = ShippingType::where('api_class', PostNordShippingProcessor::class)->first();
-        }
-
-        if (!$obShippingType instanceof ShippingType) {
-            return null;
-        }
-
-        $obItem = ShippingTypeItem::make($obShippingType->id);
-
-        return $obItem->isEmpty() ? null : $obItem;
     }
 }

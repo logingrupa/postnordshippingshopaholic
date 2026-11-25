@@ -161,16 +161,58 @@ class PostNordClient
     }
 
     /**
+     * Find both selectable delivery products (Norway mode) and nearest pickup points.
+     *
+     * @param string $sPostalCode Postal code to search near
+     * @param int $iMaxResults Maximum number of pickup points to return
+     * @param int|null $iWeightGrams Optional parcel weight in grams for Norway live pricing
+     * @param list<string> $arProducts Optional Norway settings.products filter
+     * @param list<string> $arAllowedCodes Optional Norway productCode whitelist
+     * @param array<string, mixed>|null $arParcel Optional parcel weight/dimensions/cap spec
+     * @return array{products: list<array{product_code: string, display_name: string, description: string, tip: string, price_net: float|null, price_currency: string, working_days: int|null, needs_pickup_point: bool}>, points: array<int, array<string, mixed>>}
+     */
+    public function findDeliveryCatalog(
+        string $sPostalCode,
+        int $iMaxResults = 10,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+        array $arAllowedCodes = [],
+        ?array $arParcel = null,
+    ): array {
+        if ($this->obNorwayClient !== null) {
+            return $this->obNorwayClient->findDeliveryCatalog(
+                $sPostalCode,
+                $iMaxResults,
+                $iWeightGrams,
+                $arProducts,
+                $arAllowedCodes,
+                $arParcel
+            );
+        }
+
+        return [
+            'products' => [],
+            'points'   => $this->findNearestByAddress($sPostalCode, $iMaxResults, $iWeightGrams, $arProducts),
+        ];
+    }
+
+    /**
      * Find nearest service points by postal code.
      *
      * @param string $sPostalCode Postal code to search near
      * @param int $iMaxResults Maximum number of results to return
+     * @param int|null $iWeightGrams Optional parcel weight in grams for Norway live pricing
+     * @param list<string> $arProducts Optional Norway product filter
      * @return array<int, array<string, mixed>> Parsed service point data
      */
-    public function findNearestByAddress(string $sPostalCode, int $iMaxResults = 10): array
-    {
+    public function findNearestByAddress(
+        string $sPostalCode,
+        int $iMaxResults = 10,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+    ): array {
         if ($this->obNorwayClient !== null) {
-            return $this->obNorwayClient->findNearestByAddress($sPostalCode, $iMaxResults);
+            return $this->obNorwayClient->findNearestByAddress($sPostalCode, $iMaxResults, $iWeightGrams, $arProducts);
         }
 
         if ($sPostalCode === '' || $this->sApiKey === '') {
@@ -248,11 +290,7 @@ class PostNordClient
             return $mValue;
         }
 
-        if (is_int($mValue) || is_float($mValue)) {
-            return (string) $mValue;
-        }
-
-        return '';
+        return is_int($mValue) || is_float($mValue) ? (string) $mValue : '';
     }
 
     /**
@@ -325,11 +363,7 @@ class PostNordClient
     {
         $mRouteDistance = data_get($arPointData, 'routeDistance');
 
-        if (is_numeric($mRouteDistance)) {
-            return (int) $mRouteDistance;
-        }
-
-        return null;
+        return is_numeric($mRouteDistance) ? (int) $mRouteDistance : null;
     }
 
     /**
@@ -340,13 +374,7 @@ class PostNordClient
      */
     private function extractFirstCoordinate(array $arPointData): array
     {
-        $mCoordinateList = data_get($arPointData, 'coordinates');
-
-        if (!is_array($mCoordinateList) || $mCoordinateList === []) {
-            return [];
-        }
-
-        $mFirstCoordinate = $mCoordinateList[0];
+        $mFirstCoordinate = data_get($arPointData, 'coordinates.0');
 
         return is_array($mFirstCoordinate) ? $mFirstCoordinate : [];
     }

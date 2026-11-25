@@ -57,6 +57,8 @@ abstract class PostNordTestCase extends TestCase
 
     protected function tearDown(): void
     {
+        $obItemStoreProp = new \ReflectionProperty(\Lovata\Toolbox\Classes\Item\ItemStorage::class, 'arItemStore');
+        $obItemStoreProp->setValue(null, []);
         $this->flushModelEventListeners();
         parent::tearDown();
         unset($this->app);

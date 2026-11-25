@@ -108,6 +108,12 @@ it('hides Nordic fields in Norway mode and Norway fields in Nordic mode', functi
             'property[postnord_client_secret]',
             'property[postnord_customer_id]',
             'property[postnord_sender_postal_code]',
+            'property[postnord_dynamic_pricing]',
+            'property[postnord_product_filter]',
+            'property[postnord_default_weight_grams]',
+            'property[postnord_vat_percent]',
+            'property[postnord_price_markup]',
+            'property[postnord_price_rounding]',
             'property[postnord_api_key]',
             'property[postnord_country_code]',
         ];
@@ -129,6 +135,8 @@ it('hides Nordic fields in Norway mode and Norway fields in Nordic mode', functi
     expect($obNorwayFields->get('property[postnord_country_code]')->hidden)->toBeTrue();
     expect($obNorwayFields->get('property[postnord_client_id]')->hidden)->toBeFalse();
     expect($obNorwayFields->get('property[postnord_client_secret]')->hidden)->toBeFalse();
+    expect($obNorwayFields->get('property[postnord_dynamic_pricing]')->hidden)->toBeFalse();
+    expect($obNorwayFields->get('property[postnord_vat_percent]')->hidden)->toBeFalse();
 
     $obNordicFields = $fnMakeFields('nordic');
     $obMethod->invoke($obHandler, $obNordicFields);
@@ -136,4 +144,6 @@ it('hides Nordic fields in Norway mode and Norway fields in Nordic mode', functi
     expect($obNordicFields->get('property[postnord_country_code]')->hidden)->toBeFalse();
     expect($obNordicFields->get('property[postnord_client_id]')->hidden)->toBeTrue();
     expect($obNordicFields->get('property[postnord_client_secret]')->hidden)->toBeTrue();
+    expect($obNordicFields->get('property[postnord_dynamic_pricing]')->hidden)->toBeTrue();
+    expect($obNordicFields->get('property[postnord_vat_percent]')->hidden)->toBeTrue();
 });

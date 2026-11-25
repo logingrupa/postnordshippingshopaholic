@@ -23,6 +23,7 @@ class PostNordNorwayClient
     private const API_PROD_URL = 'https://api2.postnord.no/rest/api/products';
     private const API_SANDBOX_URL = 'https://atapi2.postnord.no/rest/api/products';
     private const DEFAULT_TEST_POSTAL_CODE = '0150';
+    private const DEFAULT_TEST_WEIGHT_GRAMS = 1000;
     private const DEFAULT_TOKEN_TTL_SECONDS = 270;
     private const CONNECT_TIMEOUT_SECONDS = 3;
     private const REQUEST_TIMEOUT_SECONDS = 5;
@@ -62,7 +63,13 @@ class PostNordNorwayClient
                 return ['success' => false, 'message' => $arTokenResult['error']];
             }
 
-            $obResponse = $this->sendProductsRequest($arTokenResult['token'], self::DEFAULT_TEST_POSTAL_CODE, 3);
+            $obResponse = $this->sendProductsRequest(
+                $arTokenResult['token'],
+                self::DEFAULT_TEST_POSTAL_CODE,
+                3,
+                self::DEFAULT_TEST_WEIGHT_GRAMS,
+                [PostNordPriceCalculator::PRODUCT_LOCKER, PostNordPriceCalculator::PRODUCT_SERVICE_POINT],
+            );
             if (!$obResponse->successful()) {
                 return ['success' => false, 'message' => $this->formatApiError($obResponse->status(), $obResponse->body())];
             }
@@ -76,37 +83,70 @@ class PostNordNorwayClient
     }
 
     /**
-     * Find nearest pickup points (service points & parcel lockers) by postal code.
+     * Find both selectable delivery products (Parcel Locker, Service Point,
+     * Home Small, Home, Home Attended) and nearest pickup points in a single
+     * B2C Products API request.
      *
      * @param string $sPostalCode Consignee postal code
-     * @param int $iMaxResults Maximum number of results to return
-     * @return array<int, array<string, mixed>> Parsed service point data
+     * @param int $iMaxResults Maximum number of pickup points to return
+     * @param int|null $iWeightGrams Optional parcel weight in grams for live pricing
+     * @param list<string> $arProducts Optional API settings.products filter
+     * @param list<string> $arAllowedCodes Optional productCode whitelist (empty = all)
+     * @param array<string, mixed>|null $arParcel Optional full parcel spec (length/width/height cm, cart_total_nok, parcel_letter_max_price)
+     * @return array{products: list<array{product_code: string, display_name: string, description: string, tip: string, price_net: float|null, price_currency: string, working_days: int|null, needs_pickup_point: bool}>, points: array<int, array<string, mixed>>}
      */
-    public function findNearestByAddress(string $sPostalCode, int $iMaxResults = 10): array
-    {
+    public function findDeliveryCatalog(
+        string $sPostalCode,
+        int $iMaxResults = 10,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+        array $arAllowedCodes = [],
+        ?array $arParcel = null,
+    ): array {
+        $arEmpty = ['products' => [], 'points' => []];
         if ($sPostalCode === '' || $this->validateCredentials() !== null) {
-            return [];
+            return $arEmpty;
         }
 
         try {
-            $obResponse = $this->sendAuthenticatedProductsRequest($sPostalCode, $iMaxResults);
+            $obResponse = $this->sendAuthenticatedProductsRequest($sPostalCode, $iMaxResults, $iWeightGrams, $arProducts, $arParcel);
             if ($obResponse === null || !$obResponse->successful()) {
                 $this->logFailedResponse($obResponse, $sPostalCode);
 
-                return [];
+                return $arEmpty;
             }
 
             $arData = $obResponse->json();
 
-            return is_array($arData) ? PostNordNorwayResponseParser::parseProducts($arData, $iMaxResults) : [];
+            return is_array($arData)
+                ? PostNordNorwayResponseParser::parseDeliveryCatalog($arData, $iMaxResults, $arAllowedCodes)
+                : $arEmpty;
         } catch (\Exception $obException) {
             Log::warning('PostNord Norway API request failed', [
                 'message'     => $obException->getMessage(),
                 'postal_code' => $sPostalCode,
             ]);
 
-            return [];
+            return $arEmpty;
         }
+    }
+
+    /**
+     * Find nearest pickup points (service points & parcel lockers) by postal code.
+     *
+     * @param string $sPostalCode Consignee postal code
+     * @param int $iMaxResults Maximum number of results to return
+     * @param int|null $iWeightGrams Optional parcel weight in grams for live pricing
+     * @param list<string> $arProducts Optional product filter (e.g. ['mypackbox', 'mypack'])
+     * @return array<int, array<string, mixed>> Parsed service point data
+     */
+    public function findNearestByAddress(
+        string $sPostalCode,
+        int $iMaxResults = 10,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+    ): array {
+        return $this->findDeliveryCatalog($sPostalCode, $iMaxResults, $iWeightGrams, $arProducts)['points'];
     }
 
     /**
@@ -127,15 +167,23 @@ class PostNordNorwayClient
 
     /**
      * Send the products request with a cached JWT, retrying once on HTTP 401.
+     *
+     * @param list<string> $arProducts
+     * @param array<string, mixed>|null $arParcel
      */
-    private function sendAuthenticatedProductsRequest(string $sPostalCode, int $iMaxResults): ?Response
-    {
+    private function sendAuthenticatedProductsRequest(
+        string $sPostalCode,
+        int $iMaxResults,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+        ?array $arParcel = null,
+    ): ?Response {
         $sToken = $this->getCachedAccessToken();
         if ($sToken === '') {
             return null;
         }
 
-        $obResponse = $this->sendProductsRequest($sToken, $sPostalCode, $iMaxResults);
+        $obResponse = $this->sendProductsRequest($sToken, $sPostalCode, $iMaxResults, $iWeightGrams, $arProducts, $arParcel);
         if ($obResponse->status() !== 401) {
             return $obResponse;
         }
@@ -143,7 +191,9 @@ class PostNordNorwayClient
         Cache::forget($this->getTokenCacheKey());
         $sFreshToken = $this->getCachedAccessToken();
 
-        return $sFreshToken !== '' ? $this->sendProductsRequest($sFreshToken, $sPostalCode, $iMaxResults) : $obResponse;
+        return $sFreshToken !== ''
+            ? $this->sendProductsRequest($sFreshToken, $sPostalCode, $iMaxResults, $iWeightGrams, $arProducts, $arParcel)
+            : $obResponse;
     }
 
     /**
@@ -221,30 +271,34 @@ class PostNordNorwayClient
 
     /**
      * Send POST /rest/api/products request with Bearer token.
+     *
+     * @param list<string> $arProducts
+     * @param array<string, mixed>|null $arParcel
      */
-    private function sendProductsRequest(string $sAccessToken, string $sPostalCode, int $iMaxResults): Response
-    {
+    private function sendProductsRequest(
+        string $sAccessToken,
+        string $sPostalCode,
+        int $iMaxResults,
+        ?int $iWeightGrams = null,
+        array $arProducts = [],
+        ?array $arParcel = null,
+    ): Response {
         $sEndpoint = $this->bIsSandbox ? self::API_SANDBOX_URL : self::API_PROD_URL;
-        $sSenderCode = $this->sSenderPostalCode !== '' ? $this->sSenderPostalCode : '1528';
+        $arPayload = PostNordNorwayPayloadBuilder::buildProductsPayload(
+            $this->sCustomerId,
+            $this->sSenderPostalCode !== '' ? $this->sSenderPostalCode : '1528',
+            $sPostalCode,
+            $iMaxResults,
+            $iWeightGrams,
+            $arProducts,
+            $arParcel,
+        );
 
         return Http::connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
             ->timeout(self::REQUEST_TIMEOUT_SECONDS)
             ->withToken($sAccessToken)
             ->acceptJson()
-            ->post($sEndpoint, [
-                'settings' => [
-                    'customerId' => $this->sCustomerId,
-                    'maxSpCount' => $iMaxResults,
-                ],
-                'consignment' => [
-                    'consignor' => [
-                        'postalCode' => $sSenderCode,
-                    ],
-                    'consignee' => [
-                        'postalCode' => $sPostalCode,
-                    ],
-                ],
-            ]);
+            ->post($sEndpoint, $arPayload);
     }
 
     /**
@@ -263,12 +317,13 @@ class PostNordNorwayClient
 
         $arPointList = PostNordNorwayResponseParser::parseProducts($mData, 10);
         $sEnvironment = $this->bIsSandbox ? 'sandbox' : 'production';
+        $sPriceNote = PostNordNorwayResponseParser::formatTestPriceSummary($arPointList);
 
         return [
             'success' => true,
             'message' => 'Connection successful (' . $sEnvironment . '). Found '
                 . count($arPointList) . ' pickup point(s) near postal code '
-                . self::DEFAULT_TEST_POSTAL_CODE . ' (NO).',
+                . self::DEFAULT_TEST_POSTAL_CODE . ' (NO)' . $sPriceNote . '.',
         ];
     }
 

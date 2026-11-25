@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Logingrupa\PostNordShippingShopaholic\Classes\Store\ServicePoint;
 
 use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordClient;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordParcelCalculator;
+use Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordPriceCalculator;
 use Lovata\OrdersShopaholic\Classes\Item\ShippingTypeItem;
 
 /**
@@ -19,10 +21,15 @@ class ServicePointSearchScope
     /**
      * Extract cache-isolation parameters from a PostNord ShippingType item.
      *
-     * @return array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string}
+     * @param array{weight: int, length: int|null, width: int|null, height: int|null, cart_total_nok?: float|null, parcel_letter_max_price?: float|null, packaging?: string}|null $arParcel
+     * @return array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string, weight_grams: int, product_filter: string, parcel_sig: string}
      */
-    public static function fromShippingType(ShippingTypeItem $obShippingTypeItem, string $sPostalCode): array
-    {
+    public static function fromShippingType(
+        ShippingTypeItem $obShippingTypeItem,
+        string $sPostalCode,
+        ?int $iWeightGrams = null,
+        ?array $arParcel = null,
+    ): array {
         /** @var mixed $mProperty */
         $mProperty = $obShippingTypeItem->property;
         $arProperty = is_array($mProperty) ? $mProperty : [];
@@ -35,6 +42,10 @@ class ServicePointSearchScope
         /** @var mixed $mItemId */
         $mItemId = $obShippingTypeItem->id;
         $iShippingTypeId = is_numeric($mItemId) ? (int) $mItemId : 0;
+        $iResolvedWeight = self::resolveWeightGrams($bIsNorway, $arParcel !== null ? $arParcel['weight'] : $iWeightGrams);
+        $sParcelSig = $bIsNorway && $arParcel !== null
+            ? PostNordParcelCalculator::buildParcelSignature($arParcel)
+            : (string) $iResolvedWeight;
 
         return [
             'shipping_type_id' => $iShippingTypeId,
@@ -43,13 +54,16 @@ class ServicePointSearchScope
             'country_code'     => $sCountryCode,
             'max_results'      => $iMaxResults,
             'postal_code'      => $sPostalCode,
+            'weight_grams'     => $iResolvedWeight,
+            'product_filter'   => self::resolveProductFilter($arProperty, $bIsNorway),
+            'parcel_sig'       => $sParcelSig,
         ];
     }
 
     /**
      * Build a deterministic, collision-free cache key for the given search scope.
      *
-     * @param array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string} $arScope
+     * @param array{shipping_type_id: int, api_mode: string, sandbox: string, country_code: string, max_results: int, postal_code: string, weight_grams?: int, product_filter?: string, parcel_sig?: string} $arScope
      */
     public static function buildCacheKey(array $arScope): string
     {
@@ -60,9 +74,12 @@ class ServicePointSearchScope
             $arScope['country_code'],
             (string) $arScope['max_results'],
             $arScope['postal_code'],
+            (string) ($arScope['weight_grams'] ?? 0),
+            (string) ($arScope['product_filter'] ?? 'all'),
+            (string) ($arScope['parcel_sig'] ?? ''),
         ]);
 
-        return 'postnord_sp_v1_' . hash('sha256', $sSignature);
+        return 'postnord_sp_v4_' . hash('sha256', $sSignature);
     }
 
     /**
@@ -145,6 +162,28 @@ class ServicePointSearchScope
         $mMaxResults = $arProperty['postnord_max_results'] ?? 10;
 
         return is_numeric($mMaxResults) ? max(1, (int) $mMaxResults) : 10;
+    }
+
+    /**
+     * Resolve effective weight in grams for cache key isolation.
+     */
+    private static function resolveWeightGrams(bool $bIsNorway, ?int $iWeightGrams): int
+    {
+        return $bIsNorway && $iWeightGrams !== null && $iWeightGrams > 0 ? $iWeightGrams : 0;
+    }
+
+    /**
+     * Resolve effective product filter name for cache key isolation.
+     *
+     * @param array<mixed, mixed> $arProperty
+     */
+    private static function resolveProductFilter(array $arProperty, bool $bIsNorway): string
+    {
+        if (!$bIsNorway) {
+            return 'all';
+        }
+
+        return implode(',', PostNordPriceCalculator::resolveEnabledProductCodes($arProperty));
     }
 
     /**

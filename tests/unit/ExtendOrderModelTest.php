@@ -110,6 +110,10 @@ it('does not write stale PostNord session data onto a non-PostNord order and cle
     $obOrder->setRelation('shipping_type', $obShippingType);
 
     ExtendOrderModel::handleAfterCreate($obOrder);
+    // Session stays intact until shopaholic.order.created (post-commit) so payment rollback retains quote
+    expect(Session::get('postnord_service_point_id'))->toBe('2055887');
+
+    ExtendOrderModel::handleOrderCreated();
 
     $obReloaded = Order::find($obOrder->id);
     expect($obReloaded?->property)->toBe(['account_type' => 'private']);
@@ -118,7 +122,7 @@ it('does not write stale PostNord session data onto a non-PostNord order and cle
     expect(Session::get('postnord_service_point_address'))->toBeNull();
 });
 
-it('does not overwrite form-submitted PostNord properties with stale session values', function (): void {
+it('does not overwrite form-submitted PostNord properties with stale session values in flat-rate mode', function (): void {
     Session::put('postnord_service_point_id', 'OLD-SESSION-ID');
     Session::put('postnord_service_point_name', 'Old Stale Point');
     Session::put('postnord_service_point_address', 'Old Stale Street');
@@ -140,11 +144,61 @@ it('does not overwrite form-submitted PostNord properties with stale session val
     $obOrder->setRelation('shipping_type', $obShippingType);
 
     ExtendOrderModel::handleAfterCreate($obOrder);
+    ExtendOrderModel::handleOrderCreated();
 
     $obReloaded = Order::find($obOrder->id);
     expect($obReloaded?->property['postnord_service_point_id'])->toBe('FRESH-FORM-ID');
     expect($obReloaded?->property['postnord_service_point_name'])->toBe('Fresh Form Point');
     expect(Session::get('postnord_service_point_id'))->toBeNull();
+});
+
+it('writes authoritative server quote metadata onto dynamic-pricing orders even if form fields were tampered', function (): void {
+    $obShippingType = ShippingType::create([
+        'name'      => 'PostNord NO Dynamic',
+        'code'      => 'postnord-dyn',
+        'api_class' => PostNordShippingProcessor::class,
+        'property'  => [
+            'postnord_api_mode'        => 'norway',
+            'postnord_dynamic_pricing' => true,
+        ],
+    ]);
+
+    \Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordSessionQuoteStore::storePointQuotes(
+        (int) $obShippingType->id,
+        '1528',
+        500,
+        [
+            '2055887' => [
+                'price_default'         => 104.0,
+                'price_net'             => 83.0,
+                'currency'              => 'NOK',
+                'product_code'          => 'S',
+                'product_name'          => 'PostNord Parcel Locker',
+                'service_point_name'    => 'PAKKEAUTOMAT KANTARELLSTIEN',
+                'service_point_address' => 'KANTARELLSTIEN 48, 1529 MOSS',
+            ],
+        ]
+    );
+    \Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordSessionQuoteStore::selectPointQuote((int) $obShippingType->id, '2055887', '1528');
+
+    $obOrder = new Order();
+    $obOrder->shipping_type_id = $obShippingType->id;
+    $obOrder->property = [
+        'postnord_product_code'     => 'H', // Tampered client payload attempting home delivery at locker price!
+        'postnord_service_point_id' => '',
+    ];
+    $obOrder->save();
+    $obOrder->setRelation('shipping_type', $obShippingType);
+
+    ExtendOrderModel::handleAfterCreate($obOrder);
+    $obReloaded = Order::find($obOrder->id);
+    expect($obReloaded?->property['postnord_product_code'])->toBe('S');
+    expect($obReloaded?->property['postnord_product_name'])->toBe('PostNord Parcel Locker');
+    expect($obReloaded?->property['postnord_service_point_id'])->toBe('2055887');
+    expect($obReloaded?->property['postnord_service_point_name'])->toBe('PAKKEAUTOMAT KANTARELLSTIEN');
+
+    ExtendOrderModel::handleOrderCreated();
+    expect(\Logingrupa\PostNordShippingShopaholic\Classes\Api\PostNordSessionQuoteStore::getActiveSelectedQuote((int) $obShippingType->id))->toBeNull();
 });
 
 it('writes session fallback onto a PostNord order when form did not send pickup properties', function (): void {
@@ -165,6 +219,7 @@ it('writes session fallback onto a PostNord order when form did not send pickup 
     $obOrder->setRelation('shipping_type', $obShippingType);
 
     ExtendOrderModel::handleAfterCreate($obOrder);
+    ExtendOrderModel::handleOrderCreated();
 
     $obReloaded = Order::find($obOrder->id);
     expect($obReloaded?->property)->toMatchArray([

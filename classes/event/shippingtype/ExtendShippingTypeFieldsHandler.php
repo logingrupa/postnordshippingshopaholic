@@ -31,6 +31,23 @@ class ExtendShippingTypeFieldsHandler
         'property[postnord_client_secret]',
         'property[postnord_customer_id]',
         'property[postnord_sender_postal_code]',
+        'property[postnord_dynamic_pricing]',
+        'property[postnord_enabled_products]',
+        'property[postnord_product_filter]',
+        'property[postnord_default_weight_grams]',
+        'property[postnord_vat_percent]',
+        'property[postnord_price_markup]',
+        'property[postnord_price_rounding]',
+        'property[postnord_packaging_weight]',
+        'property[postnord_box_length]',
+        'property[postnord_box_width]',
+        'property[postnord_box_height]',
+        'property[postnord_envelope_enabled]',
+        'property[postnord_envelope_max_weight]',
+        'property[postnord_envelope_length]',
+        'property[postnord_envelope_width]',
+        'property[postnord_envelope_height]',
+        'property[postnord_parcel_letter_max_price]',
     ];
 
     /** @var list<string> */

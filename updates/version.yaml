@@ -14,3 +14,6 @@
 "1.0.5":
     - "Fix PostNord order property widget type ('input' instead of 'text') and assign them to the Shipping address tab so PostNord Service Point ID, Name, and Address render on backend Orders."
     - fix_order_properties_widget_type.php
+"1.0.6":
+    - "Add opt-in live weight & distance dynamic shipping pricing and PostNord delivery option selector (Parcel Locker, Service Point, Home Small, Home) via B2C Products API consignment.colli, server-side session quotes, and live checkout totals updates."
+    - add_product_order_properties.php

@@ -236,3 +236,171 @@ it('routes PostNordClient::fromConfig to Norway OAuth2 mode when configured', fu
     expect($arPoints)->toHaveCount(1);
     expect($arPoints[0]['name'])->toBe('Moss Pickup');
 });
+
+it('sends consignment.colli weight and products filter, parses live prices, and prefers cheaper duplicates', function (): void {
+    Http::fake([
+        'auth.postnord.no/*' => Http::response([
+            'access_token' => 'pricing-token',
+            'expires_in'   => 300,
+        ], 200),
+        'atapi2.postnord.no/rest/api/products' => Http::response([
+            'products' => [
+                [
+                    'productCode' => 'Z',
+                    'displayName' => 'PostNord Service Point',
+                    'price'       => [
+                        'priceBreakdown' => [
+                            'netAmount' => ['value' => 119.0, 'currency' => 'NOK'],
+                        ],
+                    ],
+                    'serviceLocations' => [
+                        [
+                            'id'                => '50108356',
+                            'name'              => 'JOKER AKERSGATA',
+                            'addressComponents' => [
+                                'streetAddress' => 'AKERSGATA 5',
+                                'postalCode'    => '0158',
+                                'postalArea'    => 'OSLO',
+                                'countryCode'   => 'NO',
+                            ],
+                            'distance' => 300,
+                        ],
+                        [
+                            'id'                => 'SHARED-1',
+                            'name'              => 'SHARED POINT',
+                            'addressComponents' => [
+                                'streetAddress' => 'STORGATA 2',
+                                'postalCode'    => '0150',
+                                'postalArea'    => 'OSLO',
+                                'countryCode'   => 'NO',
+                            ],
+                            'distance' => 500,
+                        ],
+                    ],
+                ],
+                [
+                    'productCode' => 'S',
+                    'displayName' => 'PostNord Parcel Locker',
+                    'price'       => [
+                        'priceBreakdown' => [
+                            'netAmount' => ['value' => 87.0, 'currency' => 'NOK'],
+                        ],
+                    ],
+                    'serviceLocations' => [
+                        [
+                            'id'                => '6412472',
+                            'name'              => 'PAKKEAUTOMAT OSLO S',
+                            'addressComponents' => [
+                                'streetAddress' => 'JERNBANETORGET 1',
+                                'postalCode'    => '0154',
+                                'postalArea'    => 'OSLO',
+                                'countryCode'   => 'NO',
+                            ],
+                            'distance' => 200,
+                        ],
+                        [
+                            'id'                => 'SHARED-1',
+                            'name'              => 'SHARED POINT LOCKER',
+                            'addressComponents' => [
+                                'streetAddress' => 'STORGATA 2',
+                                'postalCode'    => '0150',
+                                'postalArea'    => 'OSLO',
+                                'countryCode'   => 'NO',
+                            ],
+                            'distance' => 500,
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $obClient = new PostNordNorwayClient('cid', 'csec', '50076769', '1528', true);
+    $arResult = $obClient->findNearestByAddress('0150', 10, 2000, ['mypackbox', 'mypack']);
+
+    expect($arResult)->toHaveCount(3);
+    expect($arResult[0]['service_point_id'])->toBe('6412472');
+    expect($arResult[0]['product_code'])->toBe('S');
+    expect($arResult[0]['price_net'])->toBe(87.0);
+    expect($arResult[0]['price_currency'])->toBe('NOK');
+
+    expect($arResult[1]['service_point_id'])->toBe('50108356');
+    expect($arResult[1]['product_code'])->toBe('Z');
+    expect($arResult[1]['price_net'])->toBe(119.0);
+
+    // Duplicate SHARED-1 keeps cheaper product S (87 NOK) over Z (119 NOK)
+    expect($arResult[2]['service_point_id'])->toBe('SHARED-1');
+    expect($arResult[2]['product_code'])->toBe('S');
+    expect($arResult[2]['price_net'])->toBe(87.0);
+
+    Http::assertSent(static function (Request $obRequest): bool {
+        if ($obRequest->url() !== 'https://atapi2.postnord.no/rest/api/products') {
+            return false;
+        }
+
+        return data_get($obRequest->data(), 'consignment.colli.0.weight') === 2000
+            && data_get($obRequest->data(), 'settings.products') === ['mypackbox', 'mypack'];
+    });
+
+    // testConnection includes live pricing note
+    $arTest = $obClient->testConnection();
+    expect($arTest['success'])->toBeTrue();
+    expect($arTest['message'])->toContain('live pricing active (1 kg from 87 NOK net)');
+});
+
+it('parses selectable delivery options (S, B, Z, H) sorted cheapest-first and filters allowed codes', function (): void {
+    Http::fake([
+        'auth.postnord.no/*' => Http::response(['access_token' => 'cat-tok', 'expires_in' => 300], 200),
+        'atapi2.postnord.no/rest/api/products' => Http::response([
+            'products' => [
+                [
+                    'productCode'      => 'H',
+                    'displayName'      => 'PostNord Home',
+                    'texts'            => ['tip' => 'Hjemlevering 0-35 kg'],
+                    'price'            => ['priceBreakdown' => ['netAmount' => ['value' => 246.0, 'currency' => 'NOK']]],
+                    'expectedDelivery' => ['workingDays' => 1],
+                    'serviceLocations' => null,
+                ],
+                [
+                    'productCode'      => 'Q',
+                    'displayName'      => 'PostNord Home Attended',
+                    'price'            => ['priceBreakdown' => ['netAmount' => ['value' => 591.0, 'currency' => 'NOK']]],
+                    'serviceLocations' => null,
+                ],
+                [
+                    'productCode'      => 'B',
+                    'displayName'      => 'PostNord Home Small',
+                    'texts'            => ['tip' => 'Billigst'],
+                    'price'            => ['priceBreakdown' => ['netAmount' => ['value' => 110.0, 'currency' => 'NOK']]],
+                    'serviceLocations' => null,
+                ],
+                [
+                    'productCode'      => 'S',
+                    'displayName'      => 'PostNord Parcel Locker',
+                    'texts'            => ['tip' => 'Hent i pakkeautomat'],
+                    'price'            => ['priceBreakdown' => ['netAmount' => ['value' => 83.0, 'currency' => 'NOK']]],
+                    'expectedDelivery' => ['workingDays' => 1],
+                    'serviceLocations' => [
+                        [
+                            'id'                => '6412472',
+                            'name'              => 'PAKKEAUTOMAT OSLO S',
+                            'addressComponents' => ['streetAddress' => 'JERNBANETORGET 1', 'postalCode' => '0154', 'postalArea' => 'OSLO', 'countryCode' => 'NO'],
+                            'distance'          => 200,
+                        ],
+                    ],
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $obClient = new PostNordNorwayClient('cid', 'csec', '50076769', '1528', true);
+    $arCatalog = $obClient->findDeliveryCatalog('0150', 10, 500, [], ['S', 'Z', 'B', 'H']);
+
+    // Q is excluded; S (83) -> B (110) -> H (246) sorted cheapest-first
+    expect(array_column($arCatalog['products'], 'product_code'))->toBe(['S', 'B', 'H']);
+    expect($arCatalog['products'][0]['needs_pickup_point'])->toBeTrue();
+    expect($arCatalog['products'][1]['needs_pickup_point'])->toBeFalse();
+    expect($arCatalog['products'][2]['needs_pickup_point'])->toBeFalse();
+    expect($arCatalog['products'][2]['working_days'])->toBe(1);
+    expect($arCatalog['points'])->toHaveCount(1);
+});
