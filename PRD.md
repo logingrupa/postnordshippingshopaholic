@@ -1,3 +1,5 @@
+> **Historical v1 design doc (March 2026, pickup-only scope).** Superseded by [CLAUDE.md](CLAUDE.md) for current dual-mode Norway OAuth2, live B2C Products dynamic pricing, Measure packaging, and checkout integration (`v1.0.6+`).
+
 # Product Requirements Document: PostNord Pickup Locations Plugin for Lovata.Shopaholic
 
 **Author:** Manus AI
